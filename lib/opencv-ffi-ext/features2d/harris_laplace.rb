@@ -10,11 +10,6 @@ module CVFFI
 
   module Features2D
     module HarrisCommon
-      extend NiceFFI::Library
-
-      libs_dir = File.dirname(__FILE__) + "/../../../ext/opencv-ffi/"
-      pathset = NiceFFI::PathSet::DEFAULT.prepend( libs_dir )
-      load_library("cvffi", pathset)
 
 
       class HarrisLaplaceParams < NiceFFI::Struct
@@ -56,6 +51,11 @@ module CVFFI
     end
 
     module HarrisLaplace
+      extend NiceFFI::Library
+      libs_dir = File.dirname(__FILE__) + "/../../../ext/opencv-ffi/"
+      pathset = NiceFFI::PathSet::DEFAULT.prepend( libs_dir )
+      load_library("cvffi", pathset)
+
       include HarrisCommon
 
       attach_function :cvHarrisLaplaceDetector, [:pointer, :pointer, HarrisLaplaceParams.by_value ], CvSeq.typed_pointer
@@ -65,6 +65,11 @@ module CVFFI
    end
 
     module HarrisAffine
+      extend NiceFFI::Library
+      libs_dir = File.dirname(__FILE__) + "/../../../ext/opencv-ffi/"
+      pathset = NiceFFI::PathSet::DEFAULT.prepend( libs_dir )
+      load_library("cvffi", pathset)
+
       include HarrisCommon
 
       attach_function :cvHarrisAffineDetector, [:pointer, :pointer, HarrisLaplaceParams.by_value ], CvSeq.typed_pointer
