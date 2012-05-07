@@ -6,128 +6,54 @@ require 'opencv-ffi-ext/color_invariance'
 
 class TestColorInvariance < Test::Unit::TestCase
 
+  include CVFFI::ColorInvariance
+
   def setup
+    @img_one = TestSetup::test_image
   end
 
-  def test_color_invariance
-    img = TestSetup::test_image
-    dst = img.twin
-
-    CVFFI::ColorInvariance::cvCvtColorInvariants( img, dst, :CV_COLOR_INVARIANCE_BGR2GAUSSIAN_OPPONENT )
-
-    TestSetup::save_image( "gaussian_opponent.jpg", dst )
+  def test_passthrough
+    out = @img_one.clone
+    cvCvtColorInvariants( @img_one, out, :CV_COLOR_INVARIANCE_PASSTHROUGH )
+    assert_not_nil out
+    TestSetup::save_image("color_invariance_passthrough.jpg", out )
   end
 
-  def test_normalized_color_space
-    img = TestSetup::test_image
-    dst = CVFFI::Mat.new( img.image_size, :CV_8UC3 )
+  def test_opponent_gaussian
+    out = @img_one.clone
+    cvCvtColorInvariants( @img_one, out, :CV_COLOR_INVARIANCE_BGR2GAUSSIAN_OPPONENT )
+    assert_not_nil out
+    TestSetup::save_image("color_invariance_gaussian_opponent.jpg", out )
 
-    CVFFI::ColorInvariance::cvNormalizedColorImage( img, dst )
-    TestSetup::save_image( "normalized_color_space.jpg", dst )
+    e, el, ell = out.split
 
-    channels = dst.split
+    el_colored = CVFFI::cvCreateImage( el.image_size.to_CvSize, :IPL_DEPTH_8U, 3 )
+    cvCvtColorInvariants( el, el_colored, :CV_COLOR_INVARIANCE_Gray2YB )
+    ell_colored = CVFFI::cvCreateImage( ell.image_size.to_CvSize, :IPL_DEPTH_8U, 3 )
+    cvCvtColorInvariants( ell, ell_colored, :CV_COLOR_INVARIANCE_Gray2RG  )
 
-    channel_names = ["B","G","R"]
-    channels.each_with_index { |channel,i|
-      TestSetup::save_image( "normalized_channel_#{channel_names[i]}.jpg", channel )
-    }
+    TestSetup::save_image("color_invariance_gaussian_opponent_e", e )
+    TestSetup::save_image("color_invariance_gaussian_opponent_el", el_colored )
+    TestSetup::save_image("color_invariance_gaussian_opponent_ell", ell_colored )
   end
 
-  def test_color_tensor
-    img = TestSetup::test_image
-    scx = CVFFI::Mat.new( img.image_size, :CV_32FC3 )
-    scy = CVFFI::Mat.new( img.image_size, :CV_32FC3 )
+  def test_lab
+    out = @img_one.clone
+    CVFFI::cvCvtColor( @img_one, out, :CV_BGR2Lab )
+    assert_not_nil out
+    TestSetup::save_image("color_invariance_lab", out )
 
-    CVFFI::ColorInvariance::cvGenerateColorTensor( img, scx, scy )
-    # Artificially stretch color bands for image
-    min,max = [scx,scy].map { |img|
-      min,max = img.minMax
-      [ min.min, max.max ]
-    }.transpose
-    min = min.min; max = max.max
+    e, el, ell = out.split
 
-    diff = 256.0/(max-min)
-    offset = -min*diff
+    el_colored = CVFFI::cvCreateImage( el.image_size.to_CvSize, :IPL_DEPTH_8U, 3 )
+    cvCvtColorInvariants( el, el_colored, :CV_COLOR_INVARIANCE_Gray2YB )
+    ell_colored = CVFFI::cvCreateImage( ell.image_size.to_CvSize, :IPL_DEPTH_8U, 3 )
+    cvCvtColorInvariants( ell, ell_colored, :CV_COLOR_INVARIANCE_Gray2RG )
 
-    scaled_scx = scx.scale_add( diff, offset )
-    scaled_scy = scy.scale_add( diff, offset )
-
-    TestSetup::save_image( "tensor_x.jpg", scaled_scx )
-    TestSetup::save_image( "tensor_y.jpg", scaled_scy )
-
-    [true, false].each { |use_harris|
-      params = CVFFI::GoodFeaturesParams.new
-      params.max_corners = 10
-      params.use_harris = use_harris
-      corners = CVFFI::ColorInvariance::quasiInvariantFeaturesToTrack( scx, scy, params )
-
-      puts "Found #{corners.length} corners for %s." % (use_harris ? "harris" : "Shi-Tomasi")
-
-      display = [corners.length, 10].min
-      puts "Only listing first #{display} corners" unless display == corners.length
-      display.times { |i|
-        puts "%d  % 4d, % 4d" % [i, corners[i].x, corners[i].y]
-      }
-
-      annotated = img.clone
-      corners.each { |corner|
-        CVFFI::draw_circle( annotated, corner, { color: CVFFI::CvScalar.new( x: 255, y: 255, z: 0, w: 0 ) } )
-      }
-      TestSetup::save_image( "color_tensor_corners_#{use_harris ? "harris" : "shitomasi"}.jpg", annotated )
-    }
+    TestSetup::save_image("color_invariance_lab_l", e )
+    TestSetup::save_image("color_invariance_lab_a", el_colored )
+    TestSetup::save_image("color_invariance_lab_b", ell_colored )
   end
-
-  def test_color_invariance_detectors
-    img = TestSetup::test_image
-    scx = CVFFI::Mat.new( img.image_size, :CV_32FC3 )
-    scy = CVFFI::Mat.new( img.image_size, :CV_32FC3 )
-
-    CVFFI::ColorInvariance::cvGenerateSQuasiInvariant( img, scx, scy )
-    #
-    # Artificially stretch color bands for image
-    min,max = [scx,scy].map { |img|
-      min,max = img.minMax
-      [ min.min, max.max ]
-    }.transpose
-    min = min.min; max = max.max
-
-    puts "Old min %.2f max %.2f" [min,max]
-
-    diff = 256.0/(max-min)
-    offset = -min*diff
-
-    puts "Scale by %.2f, offset by %.2f" % [diff, offset]
-    scaled_scx = scx.scale_add( diff, offset )
-    scaled_scy = scy.scale_add( diff, offset )
-
-    min,max = scaled_scx.minMax
-    puts "New min %.2f new max %.2f" % [min.min, max.max]
-
-    TestSetup::save_image( "scx.jpg", scaled_scx )
-    TestSetup::save_image( "scy.jpg", scaled_scy )
- 
-    [true, false].each { |use_harris|
-    params = CVFFI::GoodFeaturesParams.new
-    params.max_corners = 10
-    params.use_harris = use_harris
-    corners = CVFFI::ColorInvariance::quasiInvariantFeaturesToTrack( scx, scy, params )
-
-    puts "Found #{corners.length} corners for %s." % (use_harris ? "harris" : "Shi-Tomasi")
-
-    display = [corners.length, 10].min
-    puts "Only listing first #{display} corners" unless display == corners.length
-    display.times { |i|
-      puts "%d  % 4d, % 4d" % [i, corners[i].x, corners[i].y]
-    }
-
-    annotated = img.clone
-    corners.each { |corner|
-      CVFFI::draw_circle( annotated, corner, { color: CVFFI::CvScalar.new( x: 255, y: 255, z: 0, w: 0 ) } )
-    }
-    TestSetup::save_image( "invariant_corners_#{use_harris ? "harris" : "shitomasi"}.jpg", annotated )
-    }
-  end
-
 
 
 end
