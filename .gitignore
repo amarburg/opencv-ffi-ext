@@ -5,3 +5,16 @@ pkg/*
 .yardoc
 coverage
 yardoc
+.config
+InstalledFiles
+lib/bundler/man
+pkg
+rdoc
+spec/reports
+test/tmp
+test/version_tmp
+tmp
+
+# YARD artifacts
+_yardoc
+doc/
