@@ -10,8 +10,14 @@ module CVFFI
 
   module Features2D
     module HarrisCommon
+      extend NiceFFI::Library
 
-      class CvHarrisParams < NiceFFI::Struct
+      libs_dir = File.dirname(__FILE__) + "/../../../ext/opencv-ffi/"
+      pathset = NiceFFI::PathSet::DEFAULT.prepend( libs_dir )
+      load_library("cvffi", pathset)
+
+
+      class HarrisLaplaceParams < NiceFFI::Struct
         layout :octaves, :int,
           :corn_thresh, :float,
           :dog_thresh, :float,
@@ -26,68 +32,44 @@ module CVFFI
         param :max_corners, 5000
         param :num_layers, 4
 
-        def to_CvHarrisParams
-          CvHarrisParams.new( @params  )
+        def to_HarrisLaplaceParams
+          HarrisLaplaceParams.new( @params  )
         end
       end
 
+      def self.detect( image, params = HarrisCommon::Params.new )
+        params = params.to_HarrisLaplaceParams unless params.is_a?( HarrisLaplaceParams )
+
+        kp_ptr = FFI::MemoryPointer.new :pointer
+        storage = CVFFI::cvCreateMemStorage( 0 )
+
+        image = image.ensure_greyscale
+
+        seq_ptr = actual_detector( image, storage, params )
+
+        keypoints = CVFFI::CvSeq.new( seq_ptr )
+        #puts "Returned #{keypoints.total} keypoints"
+
+        wrap_output( keypoints, storage )
+      end
+ 
     end
 
     module HarrisLaplace
-      extend NiceFFI::Library
-
-      libs_dir = File.dirname(__FILE__) + "/../../../ext/opencv-ffi/"
-      pathset = NiceFFI::PathSet::DEFAULT.prepend( libs_dir )
-      load_library("cvffi", pathset)
-
       include HarrisCommon
 
-      attach_function :cvHarrisLaplaceDetector, [:pointer, :pointer, CvHarrisParams.by_value ], CvSeq.typed_pointer
+      attach_function :cvHarrisLaplaceDetector, [:pointer, :pointer, HarrisLaplaceParams.by_value ], CvSeq.typed_pointer
 
-      def self.detect( image, params = HarrisCommon::Params.new )
-        params = params.to_CvHarrisParams unless params.is_a?( CvHarrisParams )
-
-        kp_ptr = FFI::MemoryPointer.new :pointer
-        storage = CVFFI::cvCreateMemStorage( 0 )
-
-        image = image.ensure_greyscale
-
-        seq_ptr = cvHarrisLaplaceDetector( image, storage, params )
-
-        keypoints = CVFFI::CvSeq.new( seq_ptr )
-        puts "Returned #{keypoints.total} keypoints"
-
-        Keypoints.new( keypoints, storage )
-      end
-    end
+      def actual_detector( *args ); cvHarrisLaplaceDetector( *args ); end
+      def wrap_output( args ); Keypoints.new( *args ); end
+   end
 
     module HarrisAffine
-      extend NiceFFI::Library
-
-      libs_dir = File.dirname(__FILE__) + "/../../../ext/opencv-ffi/"
-      pathset = NiceFFI::PathSet::DEFAULT.prepend( libs_dir )
-      load_library("cvffi", pathset)
-
       include HarrisCommon
 
-      attach_function :cvHarrisAffineDetector, [:pointer, :pointer, CvHarrisParams.by_value ], CvSeq.typed_pointer
-
-      def self.detect( image, params = HarrisCommon::Params.new )
-        params = params.to_CvHarrisParams unless params.is_a?( CvHarrisParams )
-
-        kp_ptr = FFI::MemoryPointer.new :pointer
-        storage = CVFFI::cvCreateMemStorage( 0 )
-
-        image = image.ensure_greyscale
-
-        seq_ptr = cvHarrisAffineDetector( image, storage, params )
-
-        keypoints = CVFFI::CvSeq.new( seq_ptr )
-        puts "Returned #{keypoints.total} keypoints"
-
-        EllipticKeypoints.new( keypoints, storage )
-      end
-
+      attach_function :cvHarrisAffineDetector, [:pointer, :pointer, HarrisLaplaceParams.by_value ], CvSeq.typed_pointer
+      def actual_detector( *args ); cvHarrisAffineDetector( *args ); end
+      def wrap_output( args ); EllipticKeypoints.new( *args ); end
 
     end
   end
