@@ -23,7 +23,7 @@ module CVFFI
         param :octaves, 6
         param :corn_thresh, 0.01
         param :dog_thresh, 0.01
-        param :max_corners, 5000
+        param :max_corners, 0
         param :num_layers, 4
 
         def to_HarrisLaplaceParams

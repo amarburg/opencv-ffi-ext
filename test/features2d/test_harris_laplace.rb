@@ -33,7 +33,6 @@ class TestHarrisLaplace < Test::Unit::TestCase
     assert kps.length <= 2
 
     # TODO:  Don't believe these detectors will take '0' corners yet.
-    params.max_corners = 1000000
     kps = detectorKlass::detect( @img, params )
 
     assert_not_nil kps
