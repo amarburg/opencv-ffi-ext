@@ -4,10 +4,13 @@ require 'nice-ffi'
 require 'opencv-ffi-wrappers'
 require 'opencv-ffi-wrappers/misc/params'
 
+require 'opencv-ffi-ext/features2d/keypoint'
+
 
 module CVFFI
 
   module Features2D
+
     module HarrisWithResponse
       extend NiceFFI::Library
 
@@ -21,7 +24,7 @@ module CVFFI
         layout :quality_level, :double,
           :min_distance, :double,
           :block_size, :int,
-          :harris_k, :double,
+          :k, :double,
           :use_harris, :int,
           :max_corners, :int
       end
@@ -29,10 +32,16 @@ module CVFFI
       class CVFFI::GoodFeaturesParams
 
         def to_HarrisParams
-          # CvNewHarrisParams doesn't have a mask field
-          p = @params
-          p.delete( :mask )
-          CvHarrisWithResponse.new( p )
+          # HarrisParams doesn't have a mask field
+          params = @params
+          params.delete( :mask )
+          params[:use_harris] = case params[:use_harris] 
+                                when false,0
+                                  0
+                                when true,1
+                                  1
+                                end
+          HarrisParams.new( params )
         end
       end
 
@@ -40,21 +49,16 @@ module CVFFI
       #                                    const void* _maskImage,
       #                                    CvMemStorage *pool, 
       #                                    const NewHarrisParams_t para
-      attach_function :cvGoodFeaturesWithResponse, [:pointer, :pointer, *pointer, HarrisParams.by_value ], CvSeq.typed_pointer
+      attach_function :cvGoodFeaturesWithResponse, [:pointer, :pointer, :pointer, HarrisParams.by_value ], CvSeq.typed_pointer
 
       def self.detect( image, params = CVFFI::GoodFeaturesParams.new )
         params = params.to_HarrisParams unless params.is_a?( HarrisParams )
-
         storage = CVFFI::cvCreateMemStorage( 0 )
 
-        image = image.ensure_greyscale
-
-        seq_ptr = cvHarrisLaplaceDetector( image, storage, params )
+        seq_ptr = cvGoodFeaturesWithResponse( image.ensure_greyscale, nil, storage, params )
 
         keypoints = CVFFI::CvSeq.new( seq_ptr )
-        puts "Returned #{keypoints.total} keypoints"
-
-        Keypoints.new( keypoints, storage )
+        CVFFI::Features2D::Keypoints.new( keypoints, storage )
       end
 
       def self.harrisDetect( image, params = CVFFI::GoodFeaturesParams.new )
@@ -66,7 +70,6 @@ module CVFFI
         params.use_harris = 0
         detect( image, params )
       end
-    end
 
     end
   end
