@@ -37,7 +37,6 @@ class TestHarrisWithResponse < Test::Unit::TestCase
     assert_not_nil kps
 
     puts "The #{name} (with response) detector found #{kps.size} keypoints"
-
     puts "First keypoint: " + kps.first.inspect
 
     ## Test serialization and unserialization

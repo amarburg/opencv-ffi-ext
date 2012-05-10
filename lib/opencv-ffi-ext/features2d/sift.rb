@@ -11,7 +11,7 @@ module CVFFI
   module Features2D
 
     # This module calls the cvffi extension library's SIFT functions.
-    # These functions, in turn, are re-written versions of OpenCV's SIFT 
+    # The extension's functions, in turn, are re-written versions of OpenCV's SIFT 
     # functions which expose a C API rather than un- and re-wrapping C++
     module SIFT
       extend NiceFFI::Library
@@ -43,7 +43,8 @@ module CVFFI
 
       end
 
-      ## Unfortunately, uses a bespoke "features" structure internally
+      ## Unfortunately, the code uses a bespoke "features" structure internally
+      # Rather than CvKeyPoint
       class CvSIFTFeature < NiceFFI::Struct
         layout :x, :double,
                :y, :double,
@@ -93,14 +94,7 @@ module CVFFI
       end
 
       class Results < SequenceArray
-
-        def initialize( seq, pool )
-          super( seq, pool, CvSIFTFeature )
-        end
-
-        def self.from_a( a )
-          SequenceArray.from_a( a, CvSIFTFeature )
-        end
+        sequence_class CvSIFTFeature
       end
 
 

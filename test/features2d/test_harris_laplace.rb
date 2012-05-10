@@ -3,6 +3,7 @@ require 'test/setup'
 
 require 'opencv-ffi'
 require 'opencv-ffi-ext/features2d/harris_laplace'
+require 'opencv-ffi-ext/features2d/keypoint'
 
 require 'opencv-ffi-wrappers/misc/each_two'
 
@@ -17,16 +18,32 @@ class TestHarrisLaplace < Test::Unit::TestCase
   end
   
   def test_HarrisLaplace
-    params = HarrisLaplace::Params.new
-    kps = HarrisLaplace::detect( @img, params )
+    detector_test_common( HarrisLaplace, Keypoints )
+  end
+
+  def test_HarrisAffine
+    detector_test_common( HarrisAffine, EllipticKeypoints )
+  end
+
+  def detector_test_common( detectorKlass, keypointKlass )
+    params = HarrisCommon::Params.new
+
+    params.max_corners = 2
+    kps = detectorKlass::detect( @img, params )
+    assert kps.length <= 2
+
+    # TODO:  Don't believe these detectors will take '0' corners yet.
+    params.max_corners = 1000000
+    kps = detectorKlass::detect( @img, params )
 
     assert_not_nil kps
 
-    puts "The HarrisLaplace detector found #{kps.size} keypoints"
+    puts "The #{detectorKlass} detector found #{kps.size} keypoints"
+    puts "First keypoint: #{kps.first.inspect}"
 
     ## Test serialization and unserialization
     asYaml = kps.to_yaml
-    unserialized = Keypoints.from_a( asYaml )
+    unserialized = keypointKlass.from_a( asYaml )
 
     assert_equal kps.length, unserialized.length
 
@@ -40,29 +57,5 @@ class TestHarrisLaplace < Test::Unit::TestCase
 
     }
   end
-
-def test_HarrisAffine
-    params = HarrisAffine::Params.new
-    kps = HarrisAffine::detect( @img, params )
-
-    assert_not_nil kps
-
-    puts "The HarrisAffine detector found #{kps.size} keypoints"
-
-    asYaml = kps.to_yaml
-    unserialized = EllipticKeypoints.from_a( asYaml )
-
-    assert_equal kps.length, unserialized.length
-
-    kps.extend EachTwo
-    kps.each_two( unserialized ) { |kp,uns|
-      assert_equal kp, uns
-
-      assert kp.centre.x > 0.0 and kp.centre.y > 0.0
-      assert kp.centre.y < @img.height, "Image height"
-      assert kp.centre.x < @img.width, "Image width"
-    }
-  end
-
 
 end

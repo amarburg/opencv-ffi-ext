@@ -11,7 +11,6 @@ module CVFFI
   module Features2D
     module HarrisCommon
 
-
       class HarrisLaplaceParams < NiceFFI::Struct
         layout :octaves, :int,
           :corn_thresh, :float,
@@ -32,7 +31,7 @@ module CVFFI
         end
       end
 
-      def self.detect( image, params = HarrisCommon::Params.new )
+      def detect( image, params = HarrisCommon::Params.new )
         params = params.to_HarrisLaplaceParams unless params.is_a?( HarrisLaplaceParams )
 
         kp_ptr = FFI::MemoryPointer.new :pointer
@@ -56,12 +55,12 @@ module CVFFI
       pathset = NiceFFI::PathSet::DEFAULT.prepend( libs_dir )
       load_library("cvffi", pathset)
 
-      include HarrisCommon
+      extend HarrisCommon
 
-      attach_function :cvHarrisLaplaceDetector, [:pointer, :pointer, HarrisLaplaceParams.by_value ], CvSeq.typed_pointer
+      attach_function :cvHarrisLaplaceDetector, [:pointer, :pointer, HarrisCommon::HarrisLaplaceParams.by_value ], CvSeq.typed_pointer
 
-      def actual_detector( *args ); cvHarrisLaplaceDetector( *args ); end
-      def wrap_output( args ); Keypoints.new( *args ); end
+      def self.actual_detector( *args ); cvHarrisLaplaceDetector( *args ); end
+      def self.wrap_output( *args ); Keypoints.new( *args ); end
    end
 
     module HarrisAffine
@@ -70,11 +69,12 @@ module CVFFI
       pathset = NiceFFI::PathSet::DEFAULT.prepend( libs_dir )
       load_library("cvffi", pathset)
 
-      include HarrisCommon
+      extend HarrisCommon
 
-      attach_function :cvHarrisAffineDetector, [:pointer, :pointer, HarrisLaplaceParams.by_value ], CvSeq.typed_pointer
-      def actual_detector( *args ); cvHarrisAffineDetector( *args ); end
-      def wrap_output( args ); EllipticKeypoints.new( *args ); end
+      attach_function :cvHarrisAffineDetector, [:pointer, :pointer, HarrisCommon::HarrisLaplaceParams.by_value ], CvSeq.typed_pointer
+
+      def self.actual_detector( *args ); cvHarrisAffineDetector( *args ); end
+      def self.wrap_output( *args ); EllipticKeypoints.new( *args ); end
 
     end
   end
