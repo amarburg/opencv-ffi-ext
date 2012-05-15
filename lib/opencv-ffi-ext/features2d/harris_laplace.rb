@@ -16,7 +16,8 @@ module CVFFI
           :corn_thresh, :float,
           :dog_thresh, :float,
           :max_corners, :int,
-          :num_layers, :int
+          :num_layers, :int,
+          :harris_k, :float
       end
 
       class Params < CVFFI::Params
@@ -25,6 +26,7 @@ module CVFFI
         param :dog_thresh, 0.01
         param :max_corners, 0
         param :num_layers, 4
+        param :harris_k, 0.04
 
         def to_HarrisLaplaceParams
           HarrisLaplaceParams.new( @params  )

@@ -29,7 +29,7 @@ class CV_EXPORTS HarrisLaplace
 
 public:
     HarrisLaplace();
-    HarrisLaplace(int numOctaves, float corn_thresh, float DOG_thresh,int maxCorners=1500, int num_layers=4);
+    HarrisLaplace(int numOctaves, float corn_thresh, float DOG_thresh,int maxCorners=1500, int num_layers=4, float harris_k = 0.04);
     void detect(const Mat& image, vector<KeyPoint>& keypoints) const;
     virtual ~HarrisLaplace();
 
@@ -38,6 +38,7 @@ public:
     float DOG_thresh;
     int maxCorners;
     int num_layers;
+    float harris_k;
 
 };
  
@@ -47,7 +48,7 @@ public:
  class CV_EXPORTS Params
     {
     public:
-        Params( int numOctaves=6, float corn_thresh=0.01, float DOG_thresh=0.01, int maxCorners=5000, int num_layers=4 );
+        Params( int numOctaves=6, float corn_thresh=0.01, float DOG_thresh=0.01, int maxCorners=5000, int num_layers=4, float harris_k = 0.04 );
         
 
         int numOctaves;
@@ -55,10 +56,11 @@ public:
         float DOG_thresh;
         int maxCorners;
         int num_layers;
+        float harris_k;
        
     };
     HarrisLaplaceFeatureDetector( const HarrisLaplaceFeatureDetector::Params& params=HarrisLaplaceFeatureDetector::Params() );
-    HarrisLaplaceFeatureDetector( int numOctaves, float corn_thresh, float DOG_thresh, int maxCorners, int num_layers);
+    HarrisLaplaceFeatureDetector( int numOctaves, float corn_thresh, float DOG_thresh, int maxCorners, int num_layers, float harris_k );
     virtual void read( const FileNode& fn );
     virtual void write( FileStorage& fs ) const;
 
@@ -76,7 +78,7 @@ public:
  class CV_EXPORTS Params
     {
     public:
-        Params( int numOctaves=6, float corn_thresh=0.01, float DOG_thresh=0.01, int maxCorners=5000, int num_layers=4 );
+        Params( int numOctaves=6, float corn_thresh=0.01, float DOG_thresh=0.01, int maxCorners=5000, int num_layers=4, float harris_k = 0.04 );
         
 
         int numOctaves;
@@ -84,10 +86,11 @@ public:
         float DOG_thresh;
         int maxCorners;
         int num_layers;
+        float harris_k;
        
     };
     HarrisAffineFeatureDetector( const HarrisAffineFeatureDetector::Params& params=HarrisAffineFeatureDetector::Params() );
-    HarrisAffineFeatureDetector( int numOctaves, float corn_thresh, float DOG_thresh, int maxCorners, int num_layers);
+    HarrisAffineFeatureDetector( int numOctaves, float corn_thresh, float DOG_thresh, int maxCorners, int num_layers, float harris_k);
     void detect( const Mat& image, vector<Elliptic_KeyPoint>& keypoints, const Mat& mask=Mat() ) const;
     virtual void read( const FileNode& fn );
     virtual void write( FileStorage& fs ) const;
@@ -133,6 +136,7 @@ extern "C" {
     float DOG_thresh;
     int maxCorners;
     int num_layers;
+    float harris_k;
   } CvHarrisLaplaceParams;
 
   typedef struct CvHarrisAffineParams {
@@ -141,6 +145,7 @@ extern "C" {
     float DOG_thresh;
     int maxCorners;
     int num_layers;
+    float harris_k;
   } CvHarrisAffineParams;
 
   CvSeq *cvHarrisLaplaceDetector( const CvArr *image, CvMemStorage *storage, CvHarrisLaplaceParams params );
