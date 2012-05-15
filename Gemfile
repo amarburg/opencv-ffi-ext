@@ -11,11 +11,7 @@ def my_github( x ); "http://github.com/amarburg/#{x}.git"; end
 
 gem "nice-ffi", :git=>my_github("nice-ffi")
 
-if ENV["DEV"].to_i > 0
-  gem 'opencv-ffi', :path=>"../opencv-ffi"
-else
-  gem 'opencv-ffi', :git=>my_github("opencv-ffi"), :branch=>"no-ext"
-end
+gem 'opencv-ffi', :git=>my_github("opencv-ffi")
 
 group :development do
   gem "redcarpet"
