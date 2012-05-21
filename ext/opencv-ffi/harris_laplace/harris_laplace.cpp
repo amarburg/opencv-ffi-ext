@@ -29,35 +29,35 @@ namespace cv {
   /*
    *  HarrisLaplaceFeatureDetector
    */
-  HarrisLaplaceFeatureDetector::Params::Params(int _numOctaves, float _corn_thresh, float _DOG_thresh, int _maxCorners, int _num_layers, float _harris_k ) :
-    numOctaves(_numOctaves), corn_thresh(_corn_thresh), DOG_thresh(_DOG_thresh), maxCorners(_maxCorners), num_layers(_num_layers), harris_k( _harris_k )
+  HarrisLaplaceFeatureDetector::Params::Params(int _numOctaves, float _quality_level, float _DOG_thresh, int _maxCorners, int _num_layers, float _harris_k ) :
+    numOctaves(_numOctaves), quality_level(_quality_level), DOG_thresh(_DOG_thresh), maxCorners(_maxCorners), num_layers(_num_layers), harris_k( _harris_k )
   {}
-  HarrisLaplaceFeatureDetector::HarrisLaplaceFeatureDetector( int numOctaves, float corn_thresh, float DOG_thresh, int maxCorners, int num_layers, float harris_k )
-    : harris( numOctaves, corn_thresh, DOG_thresh, maxCorners, num_layers, harris_k )
+  HarrisLaplaceFeatureDetector::HarrisLaplaceFeatureDetector( int numOctaves, float quality_level, float DOG_thresh, int maxCorners, int num_layers, float harris_k )
+    : harris( numOctaves, quality_level, DOG_thresh, maxCorners, num_layers, harris_k )
   {}
 
   HarrisLaplaceFeatureDetector::HarrisLaplaceFeatureDetector(  const Params& params  )
-    : harris( params.numOctaves, params.corn_thresh, params.DOG_thresh, params.maxCorners, params.num_layers, params.harris_k )
+    : harris( params.numOctaves, params.quality_level, params.DOG_thresh, params.maxCorners, params.num_layers, params.harris_k )
 
   {}
 
   void HarrisLaplaceFeatureDetector::read (const FileNode& fn)
   {
     int numOctaves = fn["numOctaves"];
-    float corn_thresh = fn["corn_thresh"];
+    float quality_level = fn["quality_level"];
     float DOG_thresh = fn["DOG_thresh"];
     int maxCorners = fn["maxCorners"];
     int num_layers = fn["num_layers"];
     float harris_k = fn["harris_k"];
 
-    harris = HarrisLaplace( numOctaves, corn_thresh, DOG_thresh, maxCorners,num_layers, harris_k );
+    harris = HarrisLaplace( numOctaves, quality_level, DOG_thresh, maxCorners,num_layers, harris_k );
   }
 
   void HarrisLaplaceFeatureDetector::write (FileStorage& fs) const
   {
 
     fs << "numOctaves" << harris.numOctaves;
-    fs << "corn_thresh" << harris.corn_thresh;
+    fs << "quality_level" << harris.quality_level;
     fs << "DOG_thresh" << harris.DOG_thresh;
     fs << "maxCorners" << harris.maxCorners;
     fs << "num_layers" << harris.num_layers;
@@ -76,35 +76,35 @@ namespace cv {
   /*
    *  HarrisAffineFeatureDetector
    */
-  HarrisAffineFeatureDetector::Params::Params(int _numOctaves, float _corn_thresh, float _DOG_thresh, int _maxCorners, int _num_layers, float _harris_k ) :
-    numOctaves(_numOctaves), corn_thresh(_corn_thresh), DOG_thresh(_DOG_thresh), maxCorners(_maxCorners), num_layers(_num_layers), harris_k( _harris_k )
+  HarrisAffineFeatureDetector::Params::Params(int _numOctaves, float _quality_level, float _DOG_thresh, int _maxCorners, int _num_layers, float _harris_k ) :
+    numOctaves(_numOctaves), quality_level(_quality_level), DOG_thresh(_DOG_thresh), maxCorners(_maxCorners), num_layers(_num_layers), harris_k( _harris_k )
   {}
-  HarrisAffineFeatureDetector::HarrisAffineFeatureDetector( int numOctaves, float corn_thresh, float DOG_thresh, int maxCorners, int num_layers, float harris_k )
-    : harris( numOctaves, corn_thresh, DOG_thresh, maxCorners, num_layers, harris_k )
+  HarrisAffineFeatureDetector::HarrisAffineFeatureDetector( int numOctaves, float quality_level, float DOG_thresh, int maxCorners, int num_layers, float harris_k )
+    : harris( numOctaves, quality_level, DOG_thresh, maxCorners, num_layers, harris_k )
   {}
 
   HarrisAffineFeatureDetector::HarrisAffineFeatureDetector(  const Params& params  )
-    : harris( params.numOctaves, params.corn_thresh, params.DOG_thresh, params.maxCorners, params.num_layers, params.harris_k)
+    : harris( params.numOctaves, params.quality_level, params.DOG_thresh, params.maxCorners, params.num_layers, params.harris_k)
 
   {}
 
   void HarrisAffineFeatureDetector::read (const FileNode& fn)
   {
     int numOctaves = fn["numOctaves"];
-    float corn_thresh = fn["corn_thresh"];
+    float quality_level = fn["quality_level"];
     float DOG_thresh = fn["DOG_thresh"];
     int maxCorners = fn["maxCorners"];
     int num_layers = fn["num_layers"];
     float harris_k = fn["harris_k"];
 
-    harris = HarrisLaplace( numOctaves, corn_thresh, DOG_thresh, maxCorners,num_layers, harris_k );
+    harris = HarrisLaplace( numOctaves, quality_level, DOG_thresh, maxCorners,num_layers, harris_k );
   }
 
   void HarrisAffineFeatureDetector::write (FileStorage& fs) const
   {
 
     fs << "numOctaves" << harris.numOctaves;
-    fs << "corn_thresh" << harris.corn_thresh;
+    fs << "quality_level" << harris.quality_level;
     fs << "DOG_thresh" << harris.DOG_thresh;
     fs << "maxCorners" << harris.maxCorners;
     fs << "num_layers" << harris.num_layers;
@@ -138,14 +138,14 @@ namespace cv {
   /**
    * Constructor of HarrisLaplace
    * _numOctaves: number of octaves in the gaussian pyramid
-   * _corn_thresh: cornerness threshold. The value of the parameter is multiplied by the higher cornerness value. The corners, which cornerness is lower than the product, will be rejected.
+   * _quality_level: cornerness threshold. The value of the parameter is multiplied by the higher cornerness value. The corners, which cornerness is lower than the product, will be rejected.
    * _DOG_thresh: DoG threshold. Corners that have DoG response lower than _DOG_thresh will be rejected.
    * _maxCorners: Maximum number of keypoints to return. Keypoints returned are the strongest.
    * _num_layers: number of layers in the gaussian pyramid. Accepted value are 2 or 4 so smoothing step between layer will be 1.4 or 1.2
    */
-  HarrisLaplace::HarrisLaplace(int _numOctaves, float _corn_thresh, float _DOG_thresh, int _maxCorners,
+  HarrisLaplace::HarrisLaplace(int _numOctaves, float _quality_level, float _DOG_thresh, int _maxCorners,
       int _num_layers, float _harris_k ) :
-    numOctaves(_numOctaves), corn_thresh(_corn_thresh), DOG_thresh(_DOG_thresh),
+    numOctaves(_numOctaves), quality_level(_quality_level), DOG_thresh(_DOG_thresh),
     maxCorners(_maxCorners), num_layers(_num_layers), harris_k(_harris_k)
   {
     assert(num_layers == 2 || num_layers==4);
@@ -249,7 +249,7 @@ namespace cv {
 
         /*Find max cornerness value and rejects all corners that are lower than a threshold*/
         minMaxLoc(cornern_mat, 0, &maxVal, 0, 0);
-        threshold(cornern_mat, cornern_mat, maxVal * corn_thresh, 0, THRESH_TOZERO);
+        threshold(cornern_mat, cornern_mat, maxVal * quality_level, 0, THRESH_TOZERO);
         dilate(cornern_mat, corn_dilate, Mat());
 
         Size imgsize = curr_layer.size();
@@ -344,7 +344,7 @@ namespace cv {
 
       // HarrisLaplace exists as a standalone class, as well as a FeatureDetector
       // use the standalone ... 
-      HarrisLaplaceFeatureDetector harrislaplace( params.numOctaves, params.corn_thresh, params.DOG_thresh, params.maxCorners, params.num_layers, params.harris_k );
+      HarrisLaplaceFeatureDetector harrislaplace( params.numOctaves, params.quality_level, params.DOG_thresh, params.maxCorners, params.num_layers, params.harris_k );
       harrislaplace.detect( imgMat, kps );
 
       return KeyPointsToCvSeq( kps, storage );
@@ -386,7 +386,7 @@ namespace cv {
     }
 
 
-    CvSeq *cvHarrisAffineDetector( const CvArr *image, CvMemStorage *storage, CvHarrisAffineParams params ){
+    CvSeq *cvHarrisAffineDetector( const CvArr *image, CvMemStorage *storage, CvHarrisLaplaceParams params ){
       vector<Elliptic_KeyPoint> kps;
       CvMat stub;
       Mat imgMat( cvGetMat( image, &stub ) );
@@ -394,7 +394,7 @@ namespace cv {
       //if( mask )
       //  maskMat = cvGetMat( mask, &stub );
 
-      HarrisAffineFeatureDetector harrisaffine( params.numOctaves, params.corn_thresh, params.DOG_thresh, params.maxCorners, params.num_layers, params.harris_k );
+      HarrisAffineFeatureDetector harrisaffine( params.numOctaves, params.quality_level, params.DOG_thresh, params.maxCorners, params.num_layers, params.harris_k );
       harrisaffine.detect( imgMat, kps );
 
       return EllipticKeyPointsToCvSeq( kps, storage ); 

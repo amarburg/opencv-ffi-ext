@@ -13,7 +13,7 @@ module CVFFI
 
       class HarrisLaplaceParams < NiceFFI::Struct
         layout :octaves, :int,
-          :corn_thresh, :float,
+          :quality_level, :float,
           :dog_thresh, :float,
           :max_corners, :int,
           :num_layers, :int,
@@ -22,7 +22,7 @@ module CVFFI
 
       class Params < CVFFI::Params
         param :octaves, 6
-        param :corn_thresh, 0.01
+        param :quality_level, 0.01
         param :dog_thresh, 0.01
         param :max_corners, 0
         param :num_layers, 4
