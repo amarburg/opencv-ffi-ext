@@ -116,7 +116,7 @@
 #include <opencv2/imgproc/imgproc_c.h>
 #include <opencv2/imgproc/types_c.h>
 
-//#include <stdio.h>
+#include <stdio.h>
 #include "sift.h"
 
 const double a_180divPI = 180./CV_PI;
@@ -768,6 +768,7 @@ static CvSeq* scale_space_extrema( IplImage*** dog_pyr, int octvs, int intvls,
   int o, i, r, c;
 
   features = cvCreateSeq( 0, sizeof(CvSeq), sizeof(struct feature), storage );
+
   for( o = 0; o < octvs; o++ )
     for( i = 1; i <= intvls; i++ )
       for(r = SIFT_IMG_BORDER; r < dog_pyr[o][0]->height-SIFT_IMG_BORDER; r++)
@@ -1304,6 +1305,7 @@ static void compute_descriptors( CvSeq* features, IplImage*** gauss_pyr, int d,
   for( i = 0; i < k; i++ )
     {
       feat = CV_GET_SEQ_ELEM( struct feature, features, i );
+printf( "Feature  %lf %lf\n", feat->x, feat->y ); // AMM
       ddata = feat->feature_data;
       hist = descr_hist( gauss_pyr[ddata->octv][ddata->intvl], ddata->r,
                          ddata->c, feat->ori, ddata->scl_octv, d, n );
@@ -1673,6 +1675,7 @@ extern "C" {
     if( !features )  {
       features = cvSIFTDetect(image, mask, storage, params );
     } else  {
+      printf("Using existing features.\n");
       // filter features by mask
       //KeyPointsFilter::runByPixelsMask( features, mask );
     }
@@ -1686,8 +1689,10 @@ extern "C" {
 
     ImagePyrData pyrImages( img, params.nOctaves, params.nOctaveLayers, SIFT_SIGMA, SIFT_IMG_DBL );
 
-    if( params.recalculateAngles )
+    if( params.recalculateAngles ) {
+      printf("Recalculating angles.\n");
       recalculateAngles( features, pyrImages.gauss_pyr, params.nOctaves, params.nOctaveLayers );
+}
     
     compute_descriptors( features, pyrImages.gauss_pyr, SIFT_DESCR_WIDTH, SIFT_DESCR_HIST_BINS );
 

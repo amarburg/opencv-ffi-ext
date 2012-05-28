@@ -50,7 +50,6 @@ class TestSIFT < Test::Unit::TestCase
 
   def test_SIFTDetectDescribe
     params = SIFT::Params.new
-
     kps = SIFT::detect_describe( @img, params )
 
     assert_not_nil kps
@@ -59,6 +58,8 @@ class TestSIFT < Test::Unit::TestCase
 
     # Test serialization/unserialization
     as_array = kps.to_a
+
+
     unserialized = SIFT::Results.from_a( as_array.to_yaml )
     assert_equal kps.length, unserialized.length
 
@@ -73,5 +74,22 @@ class TestSIFT < Test::Unit::TestCase
     }
   end
 
+#  def test_SIFTDescribe
+#  keypoints = [ [100,100] ]
+#  keypoints = keypoints.map { |kp|
+#	  (SIFT::CvSIFTFeature.num_keys-1-kp.length).times {
+#		  kp.push 0
+#	  }
+#	  kp.push ""
+#		  kp
+#  }
+#p keypoints
+#
+#kps = SIFT::Results.from_a( keypoints )
+#
+#	params = SIFT::Params.new
+#kps = SIFT::detect_describe( @img, params, kps )
+#	end
+#
 
-end
+	end

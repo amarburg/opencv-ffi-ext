@@ -43,8 +43,36 @@ module CVFFI
 
       end
 
+      class CvFeatureData < NiceFFI::Struct
+      layout :r, :int,
+             :c, :int,
+             :octv, :int,
+             :intvl, :int,
+             :subintvl, :double,
+             :scl_octv, :double
+
+              def self.keys
+          [ :r, :c, :octv, :intvl, :subintvl, :scl_octv ]
+        end
+
+        def to_a
+          CvFeatureData::keys.map { |key| self[key] }
+        end
+
+        def self.from_a(a)
+          raise "Not enough elements in array to unserialize (#{a.length} < #{keys.length}): #{a.join(',')}" unless a.length >= keys.length
+
+          feature = CvFeatureData.new
+          keys.each { |key|
+            feature[key] = a.shift
+          }
+          feature
+        end
+
+end
+
       ## Unfortunately, the code uses a bespoke "features" structure internally
-      # Rather than CvKeyPoint
+      # Rather than (for example) CvKeyPoint
       class CvSIFTFeature < NiceFFI::Struct
         layout :x, :double,
                :y, :double,
@@ -52,7 +80,7 @@ module CVFFI
                :orientation, :double,
                :descriptor_length, :int,
                :descriptor, [ :double, 128 ],
-               :feature_data, :pointer,
+               :feature_data, CvFeatureData.typed_pointer,
                :class_id, :int,
                :response, :float
 
@@ -60,10 +88,18 @@ module CVFFI
           [ :x, :y, :scale, :orientation, :response, :descriptor_length ]
         end
 
+        def self.num_keys
+# Extra 1 for descriptor
+          keys.length + CvFeatureData.keys.length + 1 
+end
+
         def to_a
-          CvSIFTFeature::keys.map { |key|
+          a = CvSIFTFeature::keys.map { |key|
             self[key]
-          }.push descriptor.to_a.pack( "g#{descriptor_length}" )
+          }
+a.push *(feature_data.to_a)
+a.push( descriptor.to_a.pack( "g#{descriptor_length}" ) )
+a
         end
 
         def self.from_a(a)
@@ -73,6 +109,9 @@ module CVFFI
           keys.each { |key|
             feature[key] = a.shift
           }
+
+          feature.feature_data = CvFeatureData.from_a a
+
           desc =  a.shift.unpack("g#{feature.descriptor_length}")
           feature.descriptor_length.times { |j| feature[:descriptor][j] = desc[j] }
 
@@ -81,7 +120,7 @@ module CVFFI
 
         def ==(b)
           result = CvSIFTFeature::keys.reduce( true ) { |m,s|
-            #puts "Key #{s} doesn't match" unless self[s] == b[s]
+            puts "Key #{s} doesn't match" unless self[s] == b[s]
             m = m and (self[s] == b[s])
           }
 
