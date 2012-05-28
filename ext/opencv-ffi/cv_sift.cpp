@@ -864,6 +864,7 @@ static int calc_grad_mag_ori( IplImage* img, int r, int c, double* mag,
     {
       dx = pixval32f( img, r, c+1 ) - pixval32f( img, r, c-1 );
       dy = pixval32f( img, r-1, c ) - pixval32f( img, r+1, c );
+      printf("dx = %lf, dy = %lf\n", dx ,dy );
       *mag = sqrt( dx*dx + dy*dy );
       *ori = atan2( dy, dx );
       return 1;
@@ -953,6 +954,25 @@ static double dominant_ori( double* hist, int n )
   return omax;
 }
 
+static double dominant_ori_angle( double *hist, int n )
+{
+  double omax;
+  int maxbin, i;
+
+  omax = hist[0];
+  maxbin = 0;
+  for( i = 1; i < n; i++ )
+    printf("Comparing %d %lf to %lf\n", i, hist[i], omax );
+    if( hist[i] > omax )
+      {
+        omax = hist[i];
+        maxbin = i;
+      }
+  return ( ( 2.0 * CV_PI * i ) / n ) - CV_PI;
+}
+  
+
+
 /*
   Makes a deep copy of a feature
 
@@ -1016,30 +1036,43 @@ static void add_good_ori_features( CvSeq* features, double* hist, int n,
   @param features an array of image features
   @param gauss_pyr Gaussian scale space pyramid
 */
-static void calc_feature_oris( CvSeq* features, IplImage*** gauss_pyr )
+static void calc_feature_oris( CvSeq* features, IplImage*** gauss_pyr, bool selective CV_DEFAULT(true) )
 {
-  struct feature* feat;
+  struct feature* feat, *new_feat;
   struct detection_data* ddata;
   double* hist;
   double omax;
   int i, j, n = features->total;
 
+  printf("In calc_feature_oris %d\n", features->total );
   for( i = 0; i < n; i++ )
     {
-      feat = (feature*) malloc( sizeof( struct feature ) );
-      cvSeqPopFront( features, feat );
-      ddata = feat->feature_data;
-      hist = ori_hist( gauss_pyr[ddata->octv][ddata->intvl],
-                       ddata->r, ddata->c, SIFT_ORI_HIST_BINS,
-                       cvRound( SIFT_ORI_RADIUS * ddata->scl_octv ),
-                       SIFT_ORI_SIG_FCTR * ddata->scl_octv );
-      for( j = 0; j < SIFT_ORI_SMOOTH_PASSES; j++ )
-        smooth_ori_hist( hist, SIFT_ORI_HIST_BINS );
-      omax = dominant_ori( hist, SIFT_ORI_HIST_BINS );
-      add_good_ori_features( features, hist, SIFT_ORI_HIST_BINS,
-                             omax * SIFT_ORI_PEAK_RATIO, feat );
-      free( ddata );
-      free( feat );
+      if( selective == true ) {
+        feat = (feature*) malloc( sizeof( struct feature ) );
+        cvSeqPopFront( features, feat );
+        ddata = feat->feature_data;
+        hist = ori_hist( gauss_pyr[ddata->octv][ddata->intvl],
+            ddata->r, ddata->c, SIFT_ORI_HIST_BINS,
+            cvRound( SIFT_ORI_RADIUS * ddata->scl_octv ),
+            SIFT_ORI_SIG_FCTR * ddata->scl_octv );
+        for( j = 0; j < SIFT_ORI_SMOOTH_PASSES; j++ )
+          smooth_ori_hist( hist, SIFT_ORI_HIST_BINS );
+
+        omax = dominant_ori( hist, SIFT_ORI_HIST_BINS );
+        add_good_ori_features( features, hist, SIFT_ORI_HIST_BINS,
+            omax * SIFT_ORI_PEAK_RATIO, feat );
+        free( ddata );
+        free( feat );
+      } else {
+        feat = CV_GET_SEQ_ELEM( feature, features, i );
+        ddata = feat->feature_data;
+        hist = ori_hist( gauss_pyr[ddata->octv][ddata->intvl],
+            ddata->r, ddata->c, SIFT_ORI_HIST_BINS,
+            cvRound( SIFT_ORI_RADIUS * ddata->scl_octv ),
+            SIFT_ORI_SIG_FCTR * ddata->scl_octv );
+        omax = dominant_ori_angle( hist, SIFT_ORI_HIST_BINS );
+        feat->ori = omax;
+      }
       free( hist );
     }
 }
@@ -1203,7 +1236,7 @@ static void hist_to_descr( double*** hist, int d, int n, struct feature* feat )
 
   for( r = 0; r < d; r++ )
     for( c = 0; c < d; c++ )
-      for( o = 0; o < n; o++ )
+      for( o = 0; o < n; o++ ) 
         feat->descr[k++] = hist[r][c][o];
 
   feat->d = k;
@@ -1305,8 +1338,11 @@ static void compute_descriptors( CvSeq* features, IplImage*** gauss_pyr, int d,
   for( i = 0; i < k; i++ )
     {
       feat = CV_GET_SEQ_ELEM( struct feature, features, i );
-printf( "Feature  %lf %lf\n", feat->x, feat->y ); // AMM
+      //printf( "Feature  %lf %lf\n", feat->x, feat->y ); // AMM
       ddata = feat->feature_data;
+      //printf("octv = %d, intvl = %d, r = %d, c = %d, ori = %lf, scl_octv = %lf\n",
+      //    ddata->octv, ddata->intvl, ddata->r, ddata->c, feat->ori, ddata->scl_octv );
+
       hist = descr_hist( gauss_pyr[ddata->octv][ddata->intvl], ddata->r,
                          ddata->c, feat->ori, ddata->scl_octv, d, n );
       hist_to_descr( hist, d, n, feat );
@@ -1398,101 +1434,6 @@ struct SiftParams
     int smax;
 };
 
-
-static void fillFeatureData( feature& feat, const SiftParams& params )
-{
-
-  /*
-    The formula linking the keypoint scale sigma to the octave and
-    scale index is
-
-    (1) sigma(o,s) = sigma0 2^(o+s/S)
-
-    for which
-
-    (2) o + s/S = log2 sigma/sigma0 == phi.
-
-    In addition to the scale index s (which can be fractional due to
-    scale interpolation) a keypoint has an integer scale index is too
-    (which is the index of the scale level where it was detected in
-    the DoG scale space). We have the constraints:
-
-    - o and is are integer
-
-    - is is in the range [smin+1, smax-2  ]
-
-    - o  is in the range [omin,   omin+O-1]
-
-    - is = rand(s) most of the times (but not always, due to the way s
-      is obtained by quadratic interpolation of the DoG scale space).
-
-    Depending on the values of smin and smax, often (2) has multiple
-    solutions is,o that satisfy all constraints.  In this case we
-    choose the one with biggest index o (this saves a bit of
-    computation).
-
-    DETERMINING THE OCTAVE INDEX O
-
-    From (2) we have o = phi - s/S and we want to pick the biggest
-    possible index o in the feasible range. This corresponds to
-    selecting the smallest possible index s. We write s = is + ds
-    where in most cases |ds|<.5 (but in general |ds|<1). So we have
-
-       o = phi - s/S,   s = is + ds ,   |ds| < .5 (or |ds| < 1).
-
-    Since is is in the range [smin+1,smax-2], s is in the range
-    [smin+.5,smax-1.5] (or [smin,smax-1]), the number o is an integer
-    in the range phi+[-smax+1.5,-smin-.5] (or
-    phi+[-smax+1,-smin]). Thus the maximum value of o is obtained for
-    o = floor(phi-smin-.5) (or o = floor(phi-smin)).
-
-    Finally o is clamped to make sure it is contained in the feasible
-    range.
-
-    DETERMINING THE SCALE INDEXES S AND IS
-
-    Given o we can derive is by writing (2) as
-
-      s = is + ds = S(phi - o).
-
-    We then take is = round(s) and clamp its value to be in the
-    feasible range.
-  */
-
-  double sigma = feat.scl;
-  double x = feat.x;
-  double y = feat.y;
-
-  int o, ix, iy, is;
-  float s, phi;
-
-  phi = static_cast<float>(log( sigma / params.sigma0 ) / log(2.0));
-  o = (int)std::floor( phi -  (float(params.smin)+.5)/params.S );
-  o = std::min(o, params.omin+params.O-1);
-  o = std::max(o, params.omin);
-  s = params.S * (phi - o);
-
-  is = int(s + 0.5);
-  is = std::min(is, params.smax - 2);
-  is = std::max(is, params.smin + 1);
-
-  float per = getOctaveSamplingPeriod(o) ;
-  ix = int(x / per + 0.5) ;
-  iy = int(y / per + 0.5) ;
-
-
-  detection_data* ddata = feat.feature_data;
-
-  ddata->r = iy;
-  ddata->c = ix;
-
-  ddata->octv = o + 1;
-  ddata->intvl = is + 1;
-
-  ddata->subintvl = s - is;
-  ddata->scl_octv = params.sigma0 * pow(2.0, static_cast<double>(s / params.S));
-}
-
 //==== ====
 
 static int featureCmpFunction( const void *_a, const void *_b, void *userdata )
@@ -1525,8 +1466,12 @@ static CvSeq *removeFeatureSeqDuplicates( CvSeq *features )
   int i= 0,j, n = features->total;
   struct feature *f1, *f2;
 
+  printf("Before sorting, feature lengths %d\n", features->total);
   cvSeqSort( features, featureCmpFunction, NULL );
 
+  printf("Sorted features, now removing duplicates.\n");
+
+  printf("At start, feature list length is %d\n", features->total);
   //TODO: Is this inefficient because it works in place,
   //  or does CvSeq work like a linked list, so
   //  dropping arbitrary elements is low cost.
@@ -1540,9 +1485,11 @@ static CvSeq *removeFeatureSeqDuplicates( CvSeq *features )
       i++;
     } else {
       // If equal, drop i
+      printf("Removing elements %d from list of length %d\n", i+1, features->total);
       cvSeqRemove( features, i+1 );
     }
   }
+  printf("At end, feature list length is %d\n", features->total);
 
   return features;
 }
@@ -1557,8 +1504,9 @@ static CvSeq *removeFeatureSeqDuplicates( CvSeq *features )
 void recalculateAngles( CvSeq *features, IplImage*** gauss_pyr,
                         int nOctaves, int nOctaveLayers )
 {
+    calc_feature_oris( features, gauss_pyr, false );
 
-    calc_feature_oris( features, gauss_pyr );
+    printf("Completed calculating feature orientations.\n");
    
     // Remove duplicated keypoints.
     //KeyPointsFilter::removeDuplicated( keypoints );
@@ -1668,6 +1616,7 @@ extern "C" {
     IplImage stub;
     IplImage *image = cvGetImage( imageArr, &stub );
     IplImage *mask  = maskArr ? cvGetImage( maskArr, &stub ) : NULL;
+  struct feature* feat;
 
     if( image->depth != IPL_DEPTH_8U || image->nChannels != 1 )
       CV_Error( CV_StsBadArg, "image is empty or has incorrect type (!=CV_8UC1)" );
@@ -1675,8 +1624,9 @@ extern "C" {
     if( !features )  {
       features = cvSIFTDetect(image, mask, storage, params );
     } else  {
-      printf("Using existing features.\n");
-      // filter features by mask
+      printf("Using existing features (%d).\n", features->total);
+
+            // filter features by mask
       //KeyPointsFilter::runByPixelsMask( features, mask );
     }
 
@@ -1693,7 +1643,13 @@ extern "C" {
       printf("Recalculating angles.\n");
       recalculateAngles( features, pyrImages.gauss_pyr, params.nOctaves, params.nOctaveLayers );
 }
-    
+    feat = CV_GET_SEQ_ELEM( struct feature, features, 0 );
+      printf("octv = %d, intvl = %d, r = %d, c = %d, ori = %lf, scl_octv = %lf\n",
+          feat->feature_data->octv, feat->feature_data->intvl, 
+         feat->feature_data->r, feat->feature_data->c, 
+         feat->ori, feat->feature_data->scl_octv );
+
+printf( "Computing descriptors.\n");
     compute_descriptors( features, pyrImages.gauss_pyr, SIFT_DESCR_WIDTH, SIFT_DESCR_HIST_BINS );
 
     return features;

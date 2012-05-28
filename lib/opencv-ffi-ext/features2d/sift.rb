@@ -1,5 +1,6 @@
 
 require 'nice-ffi'
+require 'base64'
 
 require 'opencv-ffi-wrappers'
 require 'opencv-ffi-wrappers/misc/params'
@@ -98,7 +99,7 @@ end
             self[key]
           }
 a.push *(feature_data.to_a)
-a.push( descriptor.to_a.pack( "g#{descriptor_length}" ) )
+a.push Base64.encode64( descriptor.to_a.pack( "g#{descriptor_length}" ) )
 a
         end
 
@@ -112,7 +113,7 @@ a
 
           feature.feature_data = CvFeatureData.from_a a
 
-          desc =  a.shift.unpack("g#{feature.descriptor_length}")
+          desc =  Base64.decode64(a.shift).unpack("g#{feature.descriptor_length}")
           feature.descriptor_length.times { |j| feature[:descriptor][j] = desc[j] }
 
           feature
@@ -157,10 +158,21 @@ a
 
       def self.detect_describe( image, params, keypoints = nil )
         params = params.to_CvSIFTParams unless params.is_a?( CvSIFTParams )
-        storage = CVFFI::cvCreateMemStorage( 0 )
-        keypoints = keypoints.to_CvSeq if keypoints
-        keypoints = CVFFI::CvSeq.new cvSIFTDetectDescribe( image.ensure_greyscale, nil, storage, params, keypoints )
-        Results.new( keypoints, storage )
+        if keypoints
+          raise "Input must be a SIFT feature sequence not #{keypoints.class}" unless keypoints.is_a?  SequenceArray  and keypoints.sequence_class == CvSIFTFeature
+
+          puts "Sending #{keypoints.length} keypoints"
+
+          # Becase the function works on keypoints in place, must be very
+          # careful to not wrap it any other Ruby objects ... which might
+          # try to destroy the cvSeq when gc'ed.
+          cvSIFTDetectDescribe( image.ensure_greyscale, nil, keypoints.pool, params, keypoints.to_CvSeq )
+          keypoints.reset
+        else
+          storage = CVFFI::cvCreateMemStorage( 0 )
+          keypoints = CVFFI::CvSeq.new cvSIFTDetectDescribe( image.ensure_greyscale, nil, storage, params, keypoints )
+          Results.new( keypoints, storage )
+        end
       end
 
     end
