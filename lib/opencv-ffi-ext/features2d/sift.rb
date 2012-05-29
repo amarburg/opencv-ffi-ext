@@ -135,6 +135,35 @@ a
 
       class Results < SequenceArray
         sequence_class CvSIFTFeature
+
+        def self.coerce( kp )
+          case kp
+          when SequenceArray, Results
+            if kp.sequence_class == CvSIFTFeature
+              puts "Asked to coerce SIFT keypoints to SIFT keypoints.  Nice!"
+              return kp
+            end
+          end
+
+          # Otherwise, must coerce.  
+          # TODO:  This is terrible right now...
+          keypoints = kp.map { |kp|
+            a = CvSIFTFeature.new
+            a.x = kp.x
+            a.y = kp.y
+
+            a.feature_data = CvFeatureData.new
+            a.feature_data.r = a.y
+            a.feature_data.c = a.x
+
+            # If the feature is forced to be at octave 0, interval 0, the scl and feature_data.scl_octv should be SIGMA = 1.6
+            a.scale = a.feature_data.scl_octv = 1.6
+
+            a.to_a
+          }
+
+          SIFT::Results.from_a( keypoints )
+        end
       end
 
 

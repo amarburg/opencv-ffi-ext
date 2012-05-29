@@ -864,7 +864,7 @@ static int calc_grad_mag_ori( IplImage* img, int r, int c, double* mag,
     {
       dx = pixval32f( img, r, c+1 ) - pixval32f( img, r, c-1 );
       dy = pixval32f( img, r-1, c ) - pixval32f( img, r+1, c );
-      printf("dx = %lf, dy = %lf\n", dx ,dy );
+      //printf("dx = %lf, dy = %lf\n", dx ,dy );
       *mag = sqrt( dx*dx + dy*dy );
       *ori = atan2( dy, dx );
       return 1;
@@ -962,7 +962,7 @@ static double dominant_ori_angle( double *hist, int n )
   omax = hist[0];
   maxbin = 0;
   for( i = 1; i < n; i++ )
-    printf("Comparing %d %lf to %lf\n", i, hist[i], omax );
+    //printf("Comparing %d %lf to %lf\n", i, hist[i], omax );
     if( hist[i] > omax )
       {
         omax = hist[i];
