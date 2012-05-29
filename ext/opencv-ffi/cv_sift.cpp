@@ -1044,7 +1044,7 @@ static void calc_feature_oris( CvSeq* features, IplImage*** gauss_pyr, bool sele
   double omax;
   int i, j, n = features->total;
 
-  printf("In calc_feature_oris %d\n", features->total );
+  //printf("In calc_feature_oris %d\n", features->total );
   for( i = 0; i < n; i++ )
     {
       if( selective == true ) {
@@ -1466,12 +1466,12 @@ static CvSeq *removeFeatureSeqDuplicates( CvSeq *features )
   int i= 0,j, n = features->total;
   struct feature *f1, *f2;
 
-  printf("Before sorting, feature lengths %d\n", features->total);
+  //printf("Before sorting, feature lengths %d\n", features->total);
   cvSeqSort( features, featureCmpFunction, NULL );
 
-  printf("Sorted features, now removing duplicates.\n");
+  //printf("Sorted features, now removing duplicates.\n");
 
-  printf("At start, feature list length is %d\n", features->total);
+  //printf("At start, feature list length is %d\n", features->total);
   //TODO: Is this inefficient because it works in place,
   //  or does CvSeq work like a linked list, so
   //  dropping arbitrary elements is low cost.
@@ -1485,11 +1485,11 @@ static CvSeq *removeFeatureSeqDuplicates( CvSeq *features )
       i++;
     } else {
       // If equal, drop i
-      printf("Removing elements %d from list of length %d\n", i+1, features->total);
+      //printf("Removing elements %d from list of length %d\n", i+1, features->total);
       cvSeqRemove( features, i+1 );
     }
   }
-  printf("At end, feature list length is %d\n", features->total);
+  //printf("At end, feature list length is %d\n", features->total);
 
   return features;
 }
@@ -1506,7 +1506,7 @@ void recalculateAngles( CvSeq *features, IplImage*** gauss_pyr,
 {
     calc_feature_oris( features, gauss_pyr, false );
 
-    printf("Completed calculating feature orientations.\n");
+    //printf("Completed calculating feature orientations.\n");
    
     // Remove duplicated keypoints.
     //KeyPointsFilter::removeDuplicated( keypoints );
@@ -1624,7 +1624,7 @@ extern "C" {
     if( !features )  {
       features = cvSIFTDetect(image, mask, storage, params );
     } else  {
-      printf("Using existing features (%d).\n", features->total);
+      //printf("Using existing features (%d).\n", features->total);
 
             // filter features by mask
       //KeyPointsFilter::runByPixelsMask( features, mask );
@@ -1640,16 +1640,16 @@ extern "C" {
     ImagePyrData pyrImages( img, params.nOctaves, params.nOctaveLayers, SIFT_SIGMA, SIFT_IMG_DBL );
 
     if( params.recalculateAngles ) {
-      printf("Recalculating angles.\n");
+      //printf("Recalculating angles.\n");
       recalculateAngles( features, pyrImages.gauss_pyr, params.nOctaves, params.nOctaveLayers );
 }
-    feat = CV_GET_SEQ_ELEM( struct feature, features, 0 );
-      printf("octv = %d, intvl = %d, r = %d, c = %d, ori = %lf, scl_octv = %lf\n",
-          feat->feature_data->octv, feat->feature_data->intvl, 
-         feat->feature_data->r, feat->feature_data->c, 
-         feat->ori, feat->feature_data->scl_octv );
+    //feat = CV_GET_SEQ_ELEM( struct feature, features, 0 );
+    //  printf("octv = %d, intvl = %d, r = %d, c = %d, ori = %lf, scl_octv = %lf\n",
+    //      feat->feature_data->octv, feat->feature_data->intvl, 
+    //     feat->feature_data->r, feat->feature_data->c, 
+    //     feat->ori, feat->feature_data->scl_octv );
 
-printf( "Computing descriptors.\n");
+    //printf( "Computing descriptors.\n");
     compute_descriptors( features, pyrImages.gauss_pyr, SIFT_DESCR_WIDTH, SIFT_DESCR_HIST_BINS );
 
     return features;
