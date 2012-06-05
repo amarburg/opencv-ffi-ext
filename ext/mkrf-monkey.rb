@@ -1,4 +1,5 @@
 
+require 'bundler/setup'
 require 'mkrf'
 
 # I admit it, I'm monkey-patching mkrf to get the behavior I want.
