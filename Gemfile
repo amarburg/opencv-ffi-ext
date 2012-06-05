@@ -14,6 +14,8 @@ gem "nice-ffi", :git=>my_github("nice-ffi")
 #gem 'opencv-ffi', :git=>my_github("opencv-ffi")
 gem 'opencv-ffi', :path=>"../opencv-ffi"
 
+gem "mkrf"
+
 group :development do
   gem "redcarpet"
   gem "simplecov", :require => false
