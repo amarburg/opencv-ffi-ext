@@ -45,6 +45,8 @@ module CVFFI
       end
 
       class CvFeatureData < NiceFFI::Struct
+        include FFI
+
       layout :r, :int,
              :c, :int,
              :octv, :int,
@@ -63,7 +65,18 @@ module CVFFI
         def self.from_a(a)
           raise "Not enough elements in array to unserialize (#{a.length} < #{keys.length}): #{a.join(',')}" unless a.length >= keys.length
 
-          feature = CvFeatureData.new
+          # This is slightly complicated because FeatureData is referenced as a pointer
+          # within CvSIFTFeature.  A copy is made of the CvSIFTFeature while packing the
+          # CvSeq, so there are no memory allocation concerns.  However, the CvSIFTFeature
+          # retains the pointer to the FeatureData, so we need to explicitly allocate
+          # a block of memory and mark it to not be freed when GC'ed.
+          pointer = MemoryPointer.new( :uint8, CvFeatureData.size, true )
+
+          # Should prevent the memory from being freed when the Ruby object "pointer" 
+          # is released
+          pointer.autorelease = false
+
+          feature = CvFeatureData.new( pointer )
           keys.each { |key|
             feature[key] = a.shift
           }
