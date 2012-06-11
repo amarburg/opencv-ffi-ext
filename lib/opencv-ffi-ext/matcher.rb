@@ -21,13 +21,15 @@ module CVFFI
                                     :NORM_RELATIVE, 8,
                                     :NORM_MINMAX, 32 ]
 
-    attach_function :bruteForceMatcher, [:pointer, :pointer, :pointer, :int, :bool], CvSeq.typed_pointer
-    attach_function :bruteForceMatcherKnn, [:pointer, :pointer, :pointer, :int, :int, :bool], CvSeq.typed_pointer
-    attach_function :bruteForceMatcherRadius, [:pointer, :pointer, :pointer, :int, :float, :bool], CvSeq.typed_pointer
-
     def self.valid_norms
       [ :NORM_L1, :NORM_L2, :NORM_L2SQR ]   
     end
+
+    # Brute force matcher
+    #
+    attach_function :bruteForceMatcher, [:pointer, :pointer, :pointer, :int, :bool], CvSeq.typed_pointer
+    attach_function :bruteForceMatcherKnn, [:pointer, :pointer, :pointer, :int, :int, :bool], CvSeq.typed_pointer
+    attach_function :bruteForceMatcherRadius, [:pointer, :pointer, :pointer, :int, :float, :bool], CvSeq.typed_pointer
 
     def self.brute_force_matcher( query, train, opts = {} )
       normType = opts[:norm_type] || opts[:norm] || :NORM_L2
@@ -45,6 +47,28 @@ module CVFFI
       MatchResults.new( seq, pool );
     end
 
+    # Flann-based matcher
+    #
+    attach_function :flannBasedMatcher, [:pointer, :pointer, :pointer], CvSeq.typed_pointer
+    attach_function :flannBasedMatcherKnn, [:pointer, :pointer, :pointer, :int ], CvSeq.typed_pointer
+    attach_function :flannBasedMatcherRadius, [:pointer, :pointer, :pointer, :float ], CvSeq.typed_pointer
+
+    def self.flann_based_matcher( query, train, opts = {} )
+      knn = opts[:knn] || 1
+      radius = opts[:radius] || nil
+
+      pool = CVFFI::cvCreateMemStorage(0);
+      seq = if radius.nil?
+              flannBasedMatcherKnn( query.to_CvMat, train.to_CvMat, pool, knn )
+            else
+              flannBasedMatcherRadius( query.to_CvMat, train.to_CvMat, pool, radius )
+            end
+
+      MatchResults.new( seq, pool );
+    end
+
+    # Match results
+    #
     class DMatch < NiceFFI::Struct
       layout  :queryIdx, :int,
               :trainIdx, :int,

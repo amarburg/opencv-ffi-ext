@@ -65,6 +65,7 @@ extern "C" {
   }
 
 
+  //##### Brute Force Matcher #######
   void bruteForceMatcherKnnActual( CvMat *query, CvMat *train, vector< vector<DMatch> > &matches, int normType, int knn, bool crossCheck CV_DEFAULT(false) ) 
   {
     Mat _train( train );
@@ -127,6 +128,45 @@ extern "C" {
 
     return DMatchToCvSeq( matches, storage, CONVERT_ALL );
   }
+
+
+  //##### FLANN Matcher #######
+  // TODO:  Expose flann parameters through API
+  void flannMatcherKnnActual( CvMat *query, CvMat *train, vector< vector<DMatch> > &matches, int knn )
+  {
+    Mat _train( train );
+    Mat _query( query );
+
+    FlannBasedMatcher matcher;
+    matcher.knnMatch( query, train, matches, knn );
+  }
+
+  CvSeq *flannBasedMatcherKnn( CvMat *query, CvMat *train, CvMemStorage *storage, int knn )
+  {
+    vector< vector<DMatch> > matches;
+    flannMatcherKnnActual( query, train, matches, knn );
+    return DMatchToCvSeq( matches, storage, CONVERT_ALL );
+  }
+
+  CvSeq *flannBasedMatcher( CvMat *query, CvMat *train, CvMemStorage *storage )
+  {
+    vector< vector<DMatch> > matches;
+    flannMatcherKnnActual( query, train, matches,  1 );
+    return DMatchToCvSeq( matches, storage, TAKE_JUST_FIRST );
+  }
+
+
+  CvSeq *flannBasedMatcherRadius( CvMat *query, CvMat *train, CvMemStorage *storage, float maxDistance )
+  {
+    Mat _train( train );
+    Mat _query( query );
+    vector< vector<DMatch> > matches;
+
+    FlannBasedMatcher matcher;
+    matcher.radiusMatch( query, train, matches, maxDistance );
+    return DMatchToCvSeq( matches, storage, CONVERT_ALL );
+  }
+
 
 
 }
