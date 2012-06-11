@@ -1535,36 +1535,36 @@ extern "C" {
       CV_Error( CV_StsBadArg, "mask has incorrect type (!=CV_8UC1)" );
 
     // Mask functionality disabled for now...
-//    Mat subImage, subMask;
-//    Rect brect( 0, 0, image.cols, image.rows );
-//    if( mask.empty() )
-//    {
-//      subImage = image;
-//    }
-//    else
-//    {
-//      vector<Point> points;
-//      points.reserve( image.rows * image.cols );
-//      for( int y = 0; y < mask.rows; y++ )
-//      {
-//        for( int x = 0; x < mask.cols; x++ )
-//        {
-//          if( mask.at<uchar>(y,x) )
-//            points.push_back( cv::Point(x,y) );
-//        }
-//      }
-//      brect = cv::boundingRect( points );
-//
-//      if( brect.x == 0 && brect.y == 0 && brect.width == mask.cols && brect.height == mask.rows )
-//      {
-//        subImage = image;
-//      }
-//      else
-//      {
-//        subImage = image( brect );
-//        subMask = mask( brect );
-//      }
-//    }
+    //    Mat subImage, subMask;
+    //    Rect brect( 0, 0, image.cols, image.rows );
+    //    if( mask.empty() )
+    //    {
+    //      subImage = image;
+    //    }
+    //    else
+    //    {
+    //      vector<Point> points;
+    //      points.reserve( image.rows * image.cols );
+    //      for( int y = 0; y < mask.rows; y++ )
+    //      {
+    //        for( int x = 0; x < mask.cols; x++ )
+    //        {
+    //          if( mask.at<uchar>(y,x) )
+    //            points.push_back( cv::Point(x,y) );
+    //        }
+    //      }
+    //      brect = cv::boundingRect( points );
+    //
+    //      if( brect.x == 0 && brect.y == 0 && brect.width == mask.cols && brect.height == mask.rows )
+    //      {
+    //        subImage = image;
+    //      }
+    //      else
+    //      {
+    //        subImage = image( brect );
+    //        subMask = mask( brect );
+    //      }
+    //    }
 
     CvSize imgSize;
     imgSize.width = image->width;
@@ -1582,21 +1582,21 @@ extern "C" {
 
     // Unfortunately, the code works on a sequence of 
 
-//    KeyPointsFilter::removeDuplicated( keypoints );
+    //    KeyPointsFilter::removeDuplicated( keypoints );
 
-//    if( !subMask.empty() )
-//    {
-//      // filter points by subMask and convert the points coordinates from subImage size to image size
-//      KeyPointsFilter::runByPixelsMask( keypoints, subMask );
-//      int dx = brect.x, dy = brect.y;
-//      vector<KeyPoint>::iterator it = keypoints.begin(),
-//        end = keypoints.end();
-//      for( ; it != end; ++it )
-//      {
-//        it->pt.x += dx;
-//        it->pt.y += dy;
-//      }
-//    }
+    //    if( !subMask.empty() )
+    //    {
+    //      // filter points by subMask and convert the points coordinates from subImage size to image size
+    //      KeyPointsFilter::runByPixelsMask( keypoints, subMask );
+    //      int dx = brect.x, dy = brect.y;
+    //      vector<KeyPoint>::iterator it = keypoints.begin(),
+    //        end = keypoints.end();
+    //      for( ; it != end; ++it )
+    //      {
+    //        it->pt.x += dx;
+    //        it->pt.y += dy;
+    //      }
+    //    }
 
     struct feature *fone = (struct feature *)cvGetSeqElem( features, 0 );
 
@@ -1611,12 +1611,12 @@ extern "C" {
       const CvArr *maskArr, 
       CvMemStorage *storage,
       CvSIFTParams_t params,
-      CvSeq *features CV_DEFAULT(NULL) )
+      CvSeq *features )
   {
     IplImage stub;
     IplImage *image = cvGetImage( imageArr, &stub );
     IplImage *mask  = maskArr ? cvGetImage( maskArr, &stub ) : NULL;
-  struct feature* feat;
+    struct feature* feat;
 
     if( image->depth != IPL_DEPTH_8U || image->nChannels != 1 )
       CV_Error( CV_StsBadArg, "image is empty or has incorrect type (!=CV_8UC1)" );
@@ -1626,7 +1626,7 @@ extern "C" {
     } else  {
       //printf("Using existing features (%d).\n", features->total);
 
-            // filter features by mask
+      // filter features by mask
       //KeyPointsFilter::runByPixelsMask( features, mask );
     }
 
@@ -1642,7 +1642,7 @@ extern "C" {
     if( params.recalculateAngles ) {
       //printf("Recalculating angles.\n");
       recalculateAngles( features, pyrImages.gauss_pyr, params.nOctaves, params.nOctaveLayers );
-}
+    }
     //feat = CV_GET_SEQ_ELEM( struct feature, features, 0 );
     //  printf("octv = %d, intvl = %d, r = %d, c = %d, ori = %lf, scl_octv = %lf\n",
     //      feat->feature_data->octv, feat->feature_data->intvl, 
@@ -1657,4 +1657,3 @@ extern "C" {
 
 
 }
-

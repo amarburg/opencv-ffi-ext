@@ -7,6 +7,7 @@ sources = [ "*.cpp",
             "harris_laplace/*.cpp",
             "color_invariance/*.cpp",
             "sift/*.cpp",
+            "matcher/*.cpp",
             "harris/*.cpp" ]
 
 Mkrf::Generator.new('libcvffi', sources, { :compiler=>"g++"}) { |g|

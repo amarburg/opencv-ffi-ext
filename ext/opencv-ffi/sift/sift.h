@@ -4,7 +4,7 @@
 #include <opencv2/core/types_c.h>
 #include <vector>
 
-#include "sift.h"
+#include "../cv_sift_wrapped.h"
 
 /* These are "pure C" versions of OpenCV's SIFT functions.
  * They aren't actually pure C, as they use some C++ functionality
@@ -17,6 +17,7 @@ extern "C"  {
   CvSeq *cvSIFTDetectDescribe( const CvArr *imageArr, const CvArr *maskArr, 
       CvMemStorage *storage, CvSIFTParams_t params,
       CvSeq *features CV_DEFAULT(NULL) );
+}
 #endif
 
 
