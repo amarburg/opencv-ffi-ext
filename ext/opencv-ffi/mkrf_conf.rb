@@ -6,6 +6,7 @@ require '../mkrf-monkey'
 sources = [ "*.cpp",
             "harris_laplace/*.cpp",
             "color_invariance/*.cpp",
+            "sift/*.cpp",
             "harris/*.cpp" ]
 
 Mkrf::Generator.new('libcvffi', sources, { :compiler=>"g++"}) { |g|
