@@ -154,7 +154,7 @@ module CVFFI
 
       openSurfDescribe( img, kp, params )
 
-      points.reset(kp)
+      points.reset( kp )
       points
     end
 
