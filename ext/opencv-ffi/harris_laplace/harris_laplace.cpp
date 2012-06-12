@@ -20,7 +20,7 @@
 
 #include "harris_laplace.hpp"
 #include "gaussian_pyramid.hpp"
-#include "sift.h"
+#include "cv_sift_wrapped.h"
 
 //#define POW2(x) (0x1 << x)
 
