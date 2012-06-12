@@ -5,7 +5,7 @@
 #include <opencv2/core/core_c.h>
 
 #include "keypoint.h"
-#include "sift.h"
+#include "cv_sift_wrapped.h"
 
 using namespace cv;
 
