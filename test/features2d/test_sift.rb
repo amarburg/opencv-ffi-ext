@@ -4,16 +4,6 @@ require 'test/setup'
 require 'opencv-ffi'
 require 'opencv-ffi-ext/features2d/sift'
 
-module EachTwo
-  def each2(other, &blk)
-    raise "Can't call each2 unless arrays are same length (#{length} != #{other.length})" unless length == other.length
-
-     self.each_with_index { |mine,i|
-       blk.call( mine, other[i] )
-     }
-  end
-end
-
 class TestSIFT < Test::Unit::TestCase
   include CVFFI::Features2D
 

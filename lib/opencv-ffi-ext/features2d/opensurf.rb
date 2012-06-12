@@ -1,5 +1,6 @@
 
 require 'nice-ffi'
+require 'base64'
 
 require 'opencv-ffi-wrappers/features2d/surf'
 
@@ -20,11 +21,67 @@ module CVFFI
     end
 
     class OpenSURFPoint < NiceFFI::Struct
+      @@descriptor_length = 64
+
       layout :pt, CvPoint,
-             :scale, :float,
-             :orientation, :float,
-             :laplacian, :int,
-             :descriptor, [ :float, 64 ]
+        :scale, :float,
+        :orientation, :float,
+        :laplacian, :int,
+        :descriptor, [ :float, @@descriptor_length ]
+
+      def x;  pt.x; end
+      def y;  pt.y; end
+
+      def self.keys
+        [ :scale, :orientation, :laplacian ]
+      end
+      def keys; self.class.keys; end
+
+      def self.num_keys
+        # Extra 3 for x,y,descriptor
+        keys.length + 3
+      end
+      def num_keys; self.class.num_keys; end
+
+      def to_a
+        a = [ pt.x, pt.y ] + keys.map { |key| self[key] }
+        a.push Base64.encode64( descriptor.to_a.pack( "g#{@@descriptor_length}" ) )
+        a
+      end
+
+      def self.from_a(a)
+        raise "Not enough elements in array to unserialize (#{a.length} < #{num_keys}" unless a.length == num_keys
+
+        feature = OpenSURFPoint.new
+        feature.pt.x = a.shift
+        feature.pt.y = a.shift
+        keys.each { |key|
+          feature[key] = a.shift
+        }
+        desc = Base64.decode64(a.shift).unpack("g#{@@descriptor_length}")
+        @@descriptor_length.times { |j| feature[:descriptor][j] = desc[j] }
+
+        feature
+      end
+
+      def ==(b)
+        result = keys.reduce( true ) { |m,s|
+            puts "Key #{s} doesn't match" unless self[s] == b[s]
+            m = m and (self[s] == b[s])
+          } and ( pt.x == b.pt.x ) and ( pt.y == b.pt.y )
+
+          result = ( result and (descriptor.to_a == b.descriptor.to_a) )
+          result
+        end
+ 
+      def to_vector
+        Vector.[]( x, y, 1 )
+      end
+      
+      def to_Point
+        pt.to_Point
+      end
+
     end
 
 
@@ -35,124 +92,13 @@ module CVFFI
     attach_function :openSurfDescribe, [ :pointer, :pointer, OpenSURFParams.by_value ], CvSeq.typed_pointer 
     attach_function :createOpenSURFPointSequence, [:pointer ], CvSeq.typed_pointer
 
-    class Result
-      attr_accessor :kp
-      def initialize( kp )
-         @kp = CVFFI::OpenSURF::OpenSURFPoint.new(kp)
-      end
-
-      def pt; @kp.pt; end
-      def x;  pt.x; end
-      def y;  pt.y; end
-
-      def scale; @kp.scale; end
-      def laplacian; @kp.laplacian; end
-      def orientation; @kp.orientation; end
-      def descriptor; @kp.descriptor; end
-
-      def distance_to(b)
-        CVFFI::VectorMath::L2distance( @kp.descriptor, b.descriptor, 64 )
-      end
-
-      def to_vector
-        Vector.[]( x, y, 1 )
-      end
-      
-      def to_Point
-        pt.to_Point
-      end
-
-      def packed_descriptor
-        [@kp.descriptor.to_a.pack('e64')].pack('m0')
-      end
-   end
-
-    class ResultArray
-      include Enumerable
-
-      attr_reader :kp, :pool
-
-      def initialize( kp, pool )
-        @kp = Sequence.new(kp)
-        @pool = pool
-        @results = Array.new( @kp.length )
-
-        destructor = Proc.new { poolPtr = FFI::MemoryPointer.new :pointer 
-                                poolPtr.putPointer( 0, @pool ) 
-                                cvReleaseMemStorage( poolPtr ) }
-        ObjectSpace.define_finalizer( self, destructor )
-      end
-
-      def reset( kp )
-        @kp = Sequence.new(kp)
-        @pool = kp.storage
-        @results = Array.new( @kp.length )
-        self
-      end
-
-      def result(i)
-        @results[i] ||= Result.new( @kp[i] )
-      end
-
-      def each
-        @results.each_index { |i| 
-          yield result(i) 
-        }
-      end
-
-      def [](i)
-        result(i)
-      end
-
-      def size
-        @kp.size
-      end
-      alias :length :size
-
-      def to_CvSeq
-        @kp.seq
-      end
+    class Results < SequenceArray
+      sequence_class  OpenSURFPoint
 
       def mark_on_image( img, opts )
-        each { |r|
-          CVFFI::draw_circle( img, r.kp.pt, opts )
+        each { |point|
+          CVFFI::draw_circle( img, point.pt, opts )
         }
-      end
-
-      def to_a
-        Array.new( size ) { |i|
-          r = result(i)
-          [ r.x, r.y, r.scale, r.orientation, r.laplacian, r.packed_descriptor ]
-          }
-      end
-
-      def self.from_a( a )
-        a = YAML::load(a) if a.is_a? String
-        raise "Don't know what to do" unless a.is_a? Array
-
-        pool = CVFFI::cvCreateMemStorage(0)
-        cvseq = CVFFI::OpenSURF::createOpenSURFPointSequence( pool )
-        seq = Sequence.new cvseq
-        
-        a.each { |r|
-          raise "Hm, not what I expected" unless r.length == 6
-          point = CVFFI::OpenSURF::OpenSURFPoint.new( '' )
-          # Hm, the embedded CvPoint buggers up initialization by hash
-          point.scale = r[2]
-          point.orientation = r[3]
-          point.laplacian = r[4]
-          d = r[5].unpack('m')[0].unpack('e64')
-
-          d.each_with_index { |d,i| point.descriptor[i] = d }
-
-          # r[5].unpack('e64')
-          point.pt.x = r[0]
-          point.pt.y = r[1]
-          seq.push( point )
-        }
-
-
-        ra = ResultArray.new( cvseq, pool )
       end
 
     end
@@ -191,7 +137,7 @@ module CVFFI
       img = img.ensure_greyscale
       kp = CVFFI::CvSeq.new openSurfDetect( img, mem_storage, params )
 
-      ResultArray.new( kp, mem_storage )
+      Results.new( kp, mem_storage )
     end
 
     # Descriptor takes x,y, scale.  Apparently not laplcian
@@ -211,7 +157,6 @@ module CVFFI
       points.reset(kp)
       points
     end
-
 
   end
 end

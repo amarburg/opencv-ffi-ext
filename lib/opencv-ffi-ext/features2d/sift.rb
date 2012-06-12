@@ -47,14 +47,14 @@ module CVFFI
       class CvFeatureData < NiceFFI::Struct
         include FFI
 
-      layout :r, :int,
-             :c, :int,
-             :octv, :int,
-             :intvl, :int,
-             :subintvl, :double,
-             :scl_octv, :double
+        layout :r, :int,
+          :c, :int,
+          :octv, :int,
+          :intvl, :int,
+          :subintvl, :double,
+          :scl_octv, :double
 
-              def self.keys
+        def self.keys
           [ :r, :c, :octv, :intvl, :subintvl, :scl_octv ]
         end
 
@@ -83,7 +83,7 @@ module CVFFI
           feature
         end
 
-end
+      end
 
       ## Unfortunately, the code uses a bespoke "features" structure internally
       # Rather than (for example) CvKeyPoint

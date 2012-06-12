@@ -6,6 +6,7 @@ require 'opencv-ffi'
 require 'opencv-ffi-ext/features2d/opensurf'
 
 class TestOpenSURF < Test::Unit::TestCase
+  include CVFFI
 
   def setup
   end
@@ -13,11 +14,10 @@ class TestOpenSURF < Test::Unit::TestCase
 
   def test_openSurfDetect
     img = TestSetup::test_image
-
-    params = CVFFI::OpenSURF::Params.new
+    params = OpenSURF::Params.new
 
     # This should test the auto=conversion to greyscale
-    surf = CVFFI::OpenSURF::detect( img, params )
+    surf = OpenSURF::detect( img, params )
 
     assert_not_nil surf
 
@@ -27,9 +27,30 @@ class TestOpenSURF < Test::Unit::TestCase
     puts "OpenSURF detected #{surf.length} points"
 
 
-    descriptors = CVFFI::OpenSURF::describe( img, surf, params )
+    descriptors = OpenSURF::describe( img, surf, params )
 
     puts "After description #{descriptors.length} points"
  end
+
+  def test_openSurf_serialization
+    img = TestSetup::test_image
+    params = OpenSURF::Params.new
+
+    # This should test the auto=conversion to greyscale
+    surf = OpenSURF::detect( img, params )
+
+    assert_not_nil surf
+
+    as_a = surf.to_a
+    unserialized = OpenSURF::Results.from_a as_a
+
+    assert_equal surf.length, unserialized.length
+
+    surf.extend EachTwo
+    surf.each2( unserialized ) { |s,u|
+      assert_equal s,u
+    }
+
+  end
 
 end
