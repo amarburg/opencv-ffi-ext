@@ -74,6 +74,23 @@ module CVFFI
               :trainIdx, :int,
               :imgIdx, :int,
               :distance, :float
+
+      def self.keys
+        [ :queryIdx, :trainIdx, :imgIdx, :distance ]
+      end
+
+      def keys; self.class.keys; end
+
+      def to_a
+        keys.map { |key| send key }
+      end
+
+      def self.from_a(arr)
+        raise "Incorrect number of elements in array -- it's #{a.length}, expecting #{keys.length}" unless a.length == keys.length
+        h = {}
+        keys.each { |key| h[key] = arr.shift }
+        DMatch.new( h )
+      end
     end
 
     class MatchResults < SequenceArray
