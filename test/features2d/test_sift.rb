@@ -24,6 +24,14 @@ class TestSIFT < Test::Unit::TestCase
     puts "here's the second keypoint:"
     p kps[1]
 
+    kps.each { |kp|
+      if kp.feature_data.octv == 0 and kp.feature_data.intvl == 1
+        puts
+        p kp
+        p kp.feature_data
+      end
+    }
+
     # Test serialization/unserialization
     as_array = kps.to_a
     unserialized = SIFT::Results.from_a( as_array.to_yaml )

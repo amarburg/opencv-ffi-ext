@@ -149,12 +149,12 @@ a
       class Results < SequenceArray
         sequence_class CvSIFTFeature
 
-        def self.coerce( kp )
+        def self.coerce( kp, opts ={} )
           case kp
           when SequenceArray, Results
             if kp.sequence_class == CvSIFTFeature
               puts "Asked to coerce SIFT keypoints to SIFT keypoints.  Nice!"
-              return kp
+              return kp unless opts[:coerce_sift]
             end
           end
 
@@ -166,11 +166,18 @@ a
             a.y = kp.y
 
             a.feature_data = CvFeatureData.new
-            a.feature_data.r = a.y
-            a.feature_data.c = a.x
+            a.feature_data.c = a.x * 2
+            a.feature_data.r = a.y * 2
 
-            # If the feature is forced to be at octave 0, interval 0, the scl and feature_data.scl_octv should be SIGMA = 1.6
-            a.scale = a.feature_data.scl_octv = 1.6
+            # interval = intvl + subintvl
+            # scl      = sigma * 2 ^ (octave + interval/intervals)
+            # scl_octv = sigma * 2 ^ (interval/intervals)
+            #
+            # For sigma = 1.6, octave = 0, interval = 1, intervals = 5
+            a.feature_data.octv = 0
+            a.feature_data.intvl = 1
+            a.feature_data.subintvl = 0.0
+            a.scale = a.feature_data.scl_octv = 1.6 * 2 ** (1.0/5)
 
             a.to_a
           }
