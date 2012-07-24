@@ -77,7 +77,7 @@ template<typename T> int icvCompressPoints( T* ptr, const uchar* mask, int mstep
 class FundamentalEstimator : public CvModelEstimator2
 {
 public:
-    FundamentalEstimator( int _modelPoints );
+    FundamentalEstimator( int _modelPoints, int _max_iters = 0 );
 
     virtual int runKernel( const CvMat* m1, const CvMat* m2, CvMat* model );
     virtual int run7Point( const CvMat* m1, const CvMat* m2, CvMat* model );
@@ -85,10 +85,11 @@ public:
 protected:
     virtual void computeReprojError( const CvMat* m1, const CvMat* m2,
                                      const CvMat* model, CvMat* error );
+
 };
 
-FundamentalEstimator::FundamentalEstimator( int _modelPoints )
-: CvModelEstimator2( _modelPoints, cvSize(3,3), _modelPoints == 7 ? 3 : 1 )
+FundamentalEstimator::FundamentalEstimator( int _modelPoints, int _max_iters )
+: CvModelEstimator2( _modelPoints, cvSize(3,3), _modelPoints == 7 ? 3 : 1, _max_iters )
 {
     assert( _modelPoints == 7 || _modelPoints == 8 );
 }
@@ -365,7 +366,7 @@ void FundamentalEstimator::computeReprojError( const CvMat* _m1, const CvMat* _m
 /* Core C entry point */
 CV_IMPL int cvEstimateFundamental( const CvMat* points1, const CvMat* points2,
                                   CvMat* fmatrix, int method,
-                                  double param1, double param2, CvMat* mask )
+                                  double param1, double param2, int max_iters,  CvMat* mask )
 {
     int result = 0;
     Ptr<CvMat> m1, m2, tempMask;
@@ -399,7 +400,7 @@ CV_IMPL int cvEstimateFundamental( const CvMat* points1, const CvMat* points2,
     if( !tempMask.empty() )
         cvSet( tempMask, cvScalarAll(1.) );
 
-    FundamentalEstimator estimator(7);
+    FundamentalEstimator estimator(7, max_iters );
     if( count == 7 )
         result = estimator.run7Point(m1, m2, &_F9x3);
     else if( method == CV_FM_8POINT )

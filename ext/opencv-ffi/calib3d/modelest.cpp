@@ -53,7 +53,8 @@
 using namespace std;
 
 
-CvModelEstimator2::CvModelEstimator2(int _modelPoints, CvSize _modelSize, int _maxBasicSolutions)
+CvModelEstimator2::CvModelEstimator2(int _modelPoints, CvSize _modelSize, int _maxBasicSolutions, int _maxIters)
+  : maxIters( _maxIters )
 {
     modelPoints = _modelPoints;
     modelSize = _modelSize;
@@ -115,7 +116,7 @@ cvRANSACUpdateNumIters( double p, double ep,
 
 bool CvModelEstimator2::runRANSAC( const CvMat* m1, const CvMat* m2, CvMat* model,
                                     CvMat* mask0, double reprojThreshold,
-                                    double confidence, int _maxIters )
+                                    double confidence )
 {
     bool result = false;
     cv::Ptr<CvMat> mask = cvCloneMat(mask0);
@@ -124,14 +125,6 @@ bool CvModelEstimator2::runRANSAC( const CvMat* m1, const CvMat* m2, CvMat* mode
 
     int count = m1->rows*m1->cols, maxGoodCount = 0;
     CV_Assert( CV_ARE_SIZES_EQ(m1, m2) && CV_ARE_SIZES_EQ(m1, mask) );
-
-    int maxIters;
-    if( _maxIters > 0 )
-      maxIters = _maxIters;
-    else if( _maxIters < 0 )
-      maxIters = -_maxIters * count;
-    else
-      maxIters = count;
 
     int iter, niters = maxIters;
 

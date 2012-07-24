@@ -19,7 +19,7 @@ module CVFFI
     end
 
     attach_function :cvEstimateFundamental, [ :pointer, :pointer, :pointer, 
-      :int, :double, :double, :pointer ], :int
+      :int, :double, :double, :int, :pointer ], :int
 
     def self.estimateFundamental( points1, points2, params )
 
@@ -28,7 +28,7 @@ module CVFFI
 
       puts "Running my fundamental calculation."
       #ret = CVFFI::cvFindFundamentalMat( points1, points2, fundamental, method, param1, param2, status )
-      ret = cvEstimateFundamental( points1, points2, fundamental, CvRansacMethod[ params.method ], params.outlier_threshold, params.confidence, status )
+      ret = cvEstimateFundamental( points1, points2, fundamental, CvRansacMethod[ params.method ], params.outlier_threshold, params.confidence, params.max_iters, status )
 
       if ret> 0
         Fundamental.new( fundamental, status, ret )

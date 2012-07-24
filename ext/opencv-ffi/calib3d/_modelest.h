@@ -48,7 +48,7 @@
 class CvModelEstimator2
 {
 public:
-    CvModelEstimator2(int _modelPoints, CvSize _modelSize, int _maxBasicSolutions);
+    CvModelEstimator2(int _modelPoints, CvSize _modelSize, int _maxBasicSolutions, int _maxIters = 5000 );
     virtual ~CvModelEstimator2();
 
     virtual int runKernel( const CvMat* m1, const CvMat* m2, CvMat* model )=0;
@@ -57,7 +57,7 @@ public:
                            CvMat* mask, double confidence=0.99, int maxIters=0 );
     virtual bool runRANSAC( const CvMat* m1, const CvMat* m2, CvMat* model,
                             CvMat* mask, double threshold,
-                            double confidence=0.99, int maxIters=0 );
+                            double confidence=0.99 );
     virtual bool refine( const CvMat*, const CvMat*, CvMat*, int ) { return true; }
     virtual void setSeed( int64 seed );
 
@@ -75,6 +75,7 @@ protected:
     int modelPoints;
     CvSize modelSize;
     int maxBasicSolutions;
+    int maxIters;
     bool checkPartialSubsets;
 };
 
