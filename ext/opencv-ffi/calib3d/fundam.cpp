@@ -365,8 +365,8 @@ void FundamentalEstimator::computeReprojError( const CvMat* _m1, const CvMat* _m
 
 /* Core C entry point */
 CV_IMPL int cvEstimateFundamental( const CvMat* points1, const CvMat* points2,
-                                  CvMat* fmatrix, int method,
-                                  double param1, double param2, int max_iters,  CvMat* mask )
+    CvMat* fmatrix, int method,
+    double param1, double param2, int max_iters,  CvMat* mask )
 {
     int result = 0;
     Ptr<CvMat> m1, m2, tempMask;

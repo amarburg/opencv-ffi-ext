@@ -27,15 +27,22 @@ module CVFFI
       status = CVFFI::cvCreateMat( points1.height, 1, :CV_8U )
 
       puts "Running my fundamental calculation."
-      #ret = CVFFI::cvFindFundamentalMat( points1, points2, fundamental, method, param1, param2, status )
-      ret = cvEstimateFundamental( points1, points2, fundamental, CvRansacMethod[ params.method ], params.outlier_threshold, params.confidence, params.max_iters, status )
+      ret = cvEstimateFundamental( points1, points2, fundamental, 
+                                   CvRansacMethod[ params.method ], params.outlier_threshold, params.confidence, params.max_iters, status )
 
-      if ret> 0
+      if ret > 0
         Fundamental.new( fundamental, status, ret )
       else
         nil
       end
 
+    end
+
+    ## Just a thin wrapper until I start monkeying with the Homography
+    #  estimator as well.
+    def self.estimateHomography( points1, points2, params )
+      puts "Running my fundamental calculation."
+      CVFFI::findHomography( points1, points2, CvRansacMethod[ params.method ], params.outlier_threshold )
     end
   end
 end
