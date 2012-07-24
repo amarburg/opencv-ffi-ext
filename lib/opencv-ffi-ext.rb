@@ -6,3 +6,5 @@ require 'opencv-ffi-ext/matcher_helper'
 require 'opencv-ffi-ext/vector_math'
 require 'opencv-ffi-ext/color_invariance'
 require 'opencv-ffi-ext/matcher'
+
+require 'opencv-ffi-ext/calib3d/fundamental.rb'
