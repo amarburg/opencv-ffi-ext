@@ -44,26 +44,30 @@ void normalizedColorImage( Mat &src, Mat &dst )
   }
 }
 
+enum SpatialInvariant { H_QUASI_INVARIANT, S_QUASI_INVARIANT, HS_QUASI_INVARIANTS };
+
 // Generates the Hx, Hy, Sx, and Sy color invariants from Chu et al 
 // "Color-based corner detection by color invariance."
 // DOI: 10.1109/HAVE.2011.6088390
 //
 // Stores them in a 4-channel mat in this order (Hx, Hy, Sx, Sy)
-void generateChuQuasiInvariants( Mat &src, Mat &dst )
+void generateSpatialQuasiInvariants( const Mat &src, Mat &dst, SpatialInvariant which )
 {
   Size sz = src.size();
 
   CV_Assert( src.channels() == 3 );
   CV_Assert( src.depth() == CV_32F );
 
-  dst.create( src.size(), CV_32FC4 );
+  if( which == HS_QUASI_INVARIANTS ) {
+    dst.create( src.size(), CV_32FC4 );
+  } else {
+    dst.create( src.size(), CV_32FC2 );
+  }
 
   CV_Assert( src.depth() == dst.depth() );
-  CV_Assert( dst.channels() == 4 );
-
   //cout << "Size is " << sz.width << "x" << sz.height << endl;
 
-  Mat e_mat( src.size(), CV_MAKETYPE( CV_32F, 3 ) );
+  Mat e_mat( src.size(), CV_32FC3 );
 
   for( int i = 0; i < sz.height; i++ ) {
     for( int j = 0; j < sz.width; j++ ) {
@@ -80,9 +84,9 @@ void generateChuQuasiInvariants( Mat &src, Mat &dst )
       out[0] = e; out[1] = el; out[2] = ell;
       e_mat.at<Pixel>(i,j) = out;
 
-      if( (i == 100) && (j==100) ) {
-      cout << "Original  r: " << r << "  g: " << g << " b: " << b << endl;
-      }
+//if( (i == 100) && (j==100) ) {
+//      cout << "Original  r: " << r << "  g: " << g << " b: " << b << endl;
+//      }
 
     }
   }
@@ -102,29 +106,85 @@ void generateChuQuasiInvariants( Mat &src, Mat &dst )
       float e = e_p[0], el = e_p[1], ell = e_p[2];
       float ex = ex_p[0], elx = ex_p[1], ellx = ex_p[2];
       float ey = ey_p[0], ely = ey_p[1], elly = ey_p[2];
-      Vec4f out;
 
-      float hdenom = el*el + ell*ell;
-      out[0] = (ell * elx - el * ellx )/hdenom;
-      out[1] = (ell * ely - el * elly )/hdenom;
+      Vec2f out;
+      Vec4f outt;
+      float hdenom, sdenom;
 
-      float sdenom = (e*e + el*el + ell*ell) * sqrt( el*el+ell*ell );
-      out[2] = ( e * (el*elx +ell*ellx) - ex * (el*el + ell*ell))/ sdenom;
-      out[3] = ( e * (el*ely +ell*elly) - ey * (el*el + ell*ell))/ sdenom;
+      // TODO:  Fix the DRY here.
+      switch( which )  {
+        case HS_QUASI_INVARIANTS:
+          hdenom = el*el + ell*ell;
+          outt[0] = (ell * elx - el * ellx )/hdenom;
+          outt[1] = (ell * ely - el * elly )/hdenom;
+          sdenom = (e*e + el*el + ell*ell) * sqrt( el*el+ell*ell );
+          outt[2] = ( e * (el*elx +ell*ellx) - ex * (el*el + ell*ell))/ sdenom;
+          outt[3] = ( e * (el*ely +ell*elly) - ey * (el*el + ell*ell))/ sdenom;
+          dst.at<Vec4f>(i,j) = outt;
+          break;
+        case H_QUASI_INVARIANT:
+          hdenom = el*el + ell*ell;
+          out[0] = (ell * elx - el * ellx )/hdenom;
+          out[1] = (ell * ely - el * elly )/hdenom;
+          dst.at<Vec2f>(i,j) = out;
+          break;
+        case S_QUASI_INVARIANT:
+          sdenom = (e*e + el*el + ell*ell) * sqrt( el*el+ell*ell );
+          out[0] = ( e * (el*elx +ell*ellx) - ex * (el*el + ell*ell))/ sdenom;
+          out[1] = ( e * (el*ely +ell*elly) - ey * (el*el + ell*ell))/ sdenom;
+          dst.at<Vec2f>(i,j) = out;
+          break;
+      }
 
-      if( (i == 210) && (j==73) ) {
+      if( (i == 561) && (j==163) ) {
         cout << "e   " << i << "," << j << " ==> " << e_p[0] << "," << e_p[1] << "," << e_p[2] <<  endl;
         cout << "ex  " << i << "," << j << " ==> " << ex_p[0] << "," << ex_p[1] << "," << ex_p[2] << endl;
         cout << "ey  " << i << "," << j << " ==> " << ey_p[0] << "," << ey_p[1] << "," << ey_p[2] << endl;
-        cout << "Hx,Hy,Sx,Sy " << i << "," << j << " ==> " << out[0] << "," << out[1] << "," << out[2] << "," << out[3] << endl;
+        cout << "Hx,Hy,Sx,Sy " << i << "," << j << " ==> " << outt[0] << "," << outt[1] << "," << outt[2] << "," << outt[3] << endl;
       }
 
-      dst.at<Vec4f>(i,j) = out;
     }
   }
 }
 
-static void chuQuasiInvariantHarris( const Mat &m, Mat &_dst, double k )
+
+static void generateChuImageTensor( const Mat &src, Mat &dst )
+{
+  Size size = src.size();
+  Mat chu( size, CV_32FC4 );
+
+  // Generate Hx, Hy, Sx, Sy
+  generateSpatialQuasiInvariants( src, chu, HS_QUASI_INVARIANTS );
+
+  // Create's M, which is equivalent to Harris' image tensor
+  dst.create( size, CV_32FC3 );
+
+  for( int i = 0; i < size.height; i++ ) {
+    for( int j = 0; j < size.width; j++ ) {
+      Vec4f px = chu.at<Vec4f>(i,j);
+      Vec3f m;
+
+      // Remember the four channels of chu = [ Hx, Hy, Sx, Sy]
+      // Store the entries of M: xx, xy, yy
+      m[0] = px[0]*px[0] + px[2]*px[2];
+      m[1] = px[0]*px[1] + px[2]*px[3];
+      m[2] = px[1]*px[1] + px[3]*px[3];
+
+      dst.at<Vec3f>(i,j) = m;
+      if( (i == 561) && (j == 163) ) {
+        cout << "At " << i << "," << j << " px = " << px[0] << "," << px[1] << "," << px[2] << "," << px[3] << endl;
+        cout << "At " << i << "," << j << " xx = " << m[0] << " xy = " << m[1] << " yy = " << m[2] << endl;
+      } 
+    }
+  }
+
+  // Gaussian smooth M
+  Size ksize( 5,5 );
+  GaussianBlur( dst, dst, ksize, 0 );
+
+}
+
+static void quasiInvariantHarris( const Mat &m, Mat &_dst, double k )
 {
   _dst.create( m.size(), CV_32F );
   Size size = m.size();
@@ -146,7 +206,7 @@ static void chuQuasiInvariantHarris( const Mat &m, Mat &_dst, double k )
 
 }
 
-static void chuQuasiInvariantMinEigen( const Mat &m, Mat &_dst )
+static void quasiInvariantMinEigen( const Mat &m, Mat &_dst )
 {
   _dst.create( m.size(), CV_32F );
   Size size = m.size();
@@ -331,46 +391,24 @@ break_out:
 }
 
 // Lift of the stock goodFeaturesToTrack, using Chu's H and S quasi invariants for the calculation
-void chuQuasiInvariantFeaturesToTrack( const Mat &chu,
+void chuQuasiInvariantFeaturesToTrack( const Mat &img,
     OutputArray _corners,
     int maxCorners, double qualityLevel, double minDistance,
     const Mat &mask, 
     bool useHarrisDetector,
     double harrisK )
 {
+  Size size = img.size();
+  Mat m_mat( img.size(), CV_32FC3 );
+  generateChuImageTensor( img, m_mat );
 
-  CV_Assert( chu.channels() == 4 );
-  CV_Assert( qualityLevel > 0 && minDistance >= 0 && maxCorners >= 0 );
- 
-  Size size = chu.size();
-  Mat m_mat( size, CV_32FC3 );
-
-  for( int i = 0; i < size.height; i++ ) {
-    for( int j = 0; j < size.width; j++ ) {
-      Vec4f px = chu.at<Vec4f>(i,j);
-      Vec3f m;
-
-      // Remember the four channels of chu = [ Hx, Hy, Sx, Sy]
-      // Store the entries of M: xx, xy, yy
-      m[0] = px[0]*px[0] + px[2]*px[2];
-      m[1] = px[0]*px[1] + px[2]*px[3];
-      m[2] = px[1]*px[1] + px[3]*px[3];
-
-      m_mat.at<Vec3f>(i,j) = m;
-    }
-  }
-
-  // Gaussian smooth M
-  Size ksize( 0,0 );
-  GaussianBlur( m_mat, m_mat, ksize, 2 );
-  
   // Stores the resulting Harris I or minimum Eigenvalues
   Mat eig;
 
   if( useHarrisDetector )
-    chuQuasiInvariantHarris( chu, eig, harrisK );
+    quasiInvariantHarris( m_mat, eig, harrisK );
   else
-    chuQuasiInvariantMinEigen( chu, eig );
+    quasiInvariantMinEigen( m_mat, eig );
 
   harrisCommon( eig, _corners,
       maxCorners, qualityLevel, minDistance,
@@ -629,80 +667,77 @@ using namespace cv;
 
 
 extern "C" {
-  void cvNormalizedColorImage( CvMat *srcarr, CvMat *dstarr )
+
+  static void convertCvMatToMat( const CvMat *srcarr, Mat &srcmat )
   {
     Mat src = cvarrToMat(srcarr);
-    Mat cvtSrc;
 
     // Input must be cast to 32FC3
     CV_Assert( src.channels() == 3 );
     switch( src.depth() ) {
       case CV_8U:
-        src.convertTo( cvtSrc, CV_32F, 1.0, 0 );
+        src.convertTo( srcmat, CV_32F, 1.0/255.0, 0 );
         break;
       case CV_32F:
-        cvtSrc = src;
-        break;
-      default:
-        cout << "cvNormalizedColorImage cannot deal with type " << src.depth() << endl;
-    }
-
-    Mat dstMat = cvarrToMat(dstarr), dst;
-
-    cv::normalizedColorImage( cvtSrc, dst );
-
-    // Cast back to scx, scy type
-    switch( dstMat.depth() ) {
-      case CV_8U:
-        dst.convertTo( dstMat, CV_8U, 256.0, 0 );
-        break;
-      case CV_32F:
-        // Strictly speaking, you should be able to set scx.data == dstx
-        // but the syntax escapes me...
-        dst.copyTo( dstMat );
-        break;
-      default:
-        cout << "cvNormalizeColorImage cannot deal with type " << dstMat.depth() << endl;
-    }
-  }
-
-
-  void cvGenerateChuQuasiInvariants( CvMat *srcarr, CvMat *dstarr )
-  {
-    Mat src = cvarrToMat(srcarr);
-    Mat cvtSrc;
-
-    // Input must be cast to 32FC3
-    CV_Assert( src.channels() == 3 );
-    switch( src.depth() ) {
-      case CV_8U:
-        src.convertTo( cvtSrc, CV_32F, 1.0/255.0, 0 );
-        break;
-      case CV_32F:
-        cvtSrc = src;
+        srcmat = src;
         break;
       default:
         cout << "cvGenerateChuColorInvariants cannot deal with type " << src.depth() << endl;
     }
+  }
 
-    Mat dstmat = cvarrToMat(dstarr), dst;
-
-    cv::generateChuQuasiInvariants( cvtSrc, dst );
+  static void convertMatToCvMat( Mat &dstmat, CvMat *dstarr )
+  {
+    Mat dst = cvarrToMat( dstarr );
 
     // Cast back to the type of dstarr
-    switch( dstmat.depth() ) {
+    switch( dst.depth() ) {
       case CV_8U:
-        dst.convertTo( dstmat, CV_8U, 256.0, 0 );
+        dstmat.convertTo( dst, CV_8U, 256.0, 0 );
         break;
       case CV_32F:
         // Strictly speaking, you should be able to set scx.data == dstx
         // but the syntax escapes me...
-        dst.copyTo( dstmat );
+        dstmat.copyTo( dst );
         break;
       default:
         cout << "cvGenerateChuColorInvariant cannot deal with type " << dstmat.depth() << endl;
     }
   }
+
+  void cvNormalizedColorImage( CvMat *srcarr, CvMat *dstarr )
+  {
+    Mat src, dst;
+    convertCvMatToMat( srcarr, src ); 
+    cv::normalizedColorImage( src, dst );
+    convertMatToCvMat( dst, dstarr );
+  }
+
+  void cvGenerateChuQuasiInvariants( CvMat *srcarr, CvMat *dstarr )
+  {
+    Mat src, dst;
+    convertCvMatToMat( srcarr, src ); 
+    cv::generateSpatialQuasiInvariants( src, dst, HS_QUASI_INVARIANTS);
+    convertMatToCvMat( dst, dstarr );
+  }
+
+  void cvGenerateHQuasiInvariant( CvMat *srcarr, CvMat *dstarr )
+  {
+    Mat src, dst;
+    convertCvMatToMat( srcarr, src ); 
+    cv::generateSpatialQuasiInvariants( src, dst, H_QUASI_INVARIANT);
+    convertMatToCvMat( dst, dstarr );
+  }
+
+  void cvGenerateSQuasiInvariant( CvMat *srcarr, CvMat *dstarr )
+  {
+    Mat src, dst;
+    convertCvMatToMat( srcarr, src ); 
+    cv::generateSpatialQuasiInvariants( src, dst, S_QUASI_INVARIANT);
+    convertMatToCvMat( dst, dstarr );
+  }
+
+
 
   void cvGenerateColorTensor( CvMat *srcarr, CvMat *scx, CvMat *scy )
   {
@@ -744,58 +779,16 @@ extern "C" {
     }
   }
 
-  void cvGenerateSQuasiInvariant( CvMat *srcarr, CvMat *scx, CvMat *scy )
-  {
-    Mat src = cvarrToMat(srcarr);
-    Mat cvtSrc;
-
-    // Input must be cast to 32FC3
-    CV_Assert( src.channels() == 3 );
-    switch( src.depth() ) {
-      case CV_8U:
-        src.convertTo( cvtSrc, CV_32F, 1.0, 0 );
-        break;
-      case CV_32F:
-        cvtSrc = src;
-        break;
-      default:
-        cout << "cvGenerateSQuasiInvariant cannot deal with type " << src.depth() << endl;
-    }
-
-    Mat scxMat = cvarrToMat(scx), dstx;
-    Mat scyMat = cvarrToMat(scy), dsty;
-
-    cv::generateSQuasiInvariant( cvtSrc, dstx, dsty );
-
-    // Cast back to scx, scy type
-    switch( scxMat.depth() ) {
-      case CV_8U:
-        dstx.convertTo( scxMat, CV_8U, 256.0, 0 );
-        dsty.convertTo( scyMat, CV_8U, 256.0, 0 );
-        break;
-      case CV_32F:
-        // Strictly speaking, you should be able to set scx.data == dstx
-        // but the syntax escapes me...
-        dstx.copyTo( scxMat );
-        dsty.copyTo( scyMat );
-        break;
-      default:
-        cout << "cvGenerateSQuasiInvariant cannot deal with type " << scxMat.depth() << endl;
-    }
-
-    // This will catch if dstx,dsty are reallocated in generateSQuasiInvariant
-    //CV_Assert( dstx.data == dstx1.data );
-    //CV_Assert( dsty.data == dsty0.data );
-  }
-
-  void cvChuQuasiInvariantFeaturesToTrack( const Mat *_chu,
+  void cvChuQuasiInvariantFeaturesToTrack( const CvMat *_chu,
       CvPoint2D32f* _corners, int *_corner_count,
       double quality_level, double min_distance,
       const void* _maskImage, 
       int use_harris, double harris_k )
   {
-    cv::Mat chu = cv::cvarrToMat(_chu), mask;
+    Mat chu, mask;
     cv::vector<cv::Point2f> corners;
+
+    convertCvMatToMat( _chu, chu );
 
     if( _maskImage )
       mask = cv::cvarrToMat(_maskImage);
