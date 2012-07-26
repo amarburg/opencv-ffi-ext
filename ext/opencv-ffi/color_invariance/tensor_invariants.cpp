@@ -109,7 +109,7 @@ void generateChuQuasiInvariants( Mat &src, Mat &dst )
       out[1] = (ell * ely - el * elly )/hdenom;
 
       float sdenom = (e*e + el*el + ell*ell) * sqrt( el*el+ell*ell );
-      out[2] = ( e * (el*elx +ell*ellx) - ex * (el*el + ell*ell))/denom;
+      out[2] = ( e * (el*elx +ell*ellx) - ex * (el*el + ell*ell))/ sdenom;
       out[3] = ( e * (el*ely +ell*elly) - ey * (el*el + ell*ell))/ sdenom;
 
       if( (i == 210) && (j==73) ) {
@@ -124,34 +124,20 @@ void generateChuQuasiInvariants( Mat &src, Mat &dst )
   }
 }
 
-static void chuQuasiInvariantHarris( const Mat &chu, Mat &_dst, double k )
+static void chuQuasiInvariantHarris( const Mat &m, Mat &_dst, double k )
 {
-  _dst.create( chu.size(), CV_32F );
-  Size size = chu.size();
+  _dst.create( m.size(), CV_32F );
+  Size size = m.size();
 
-  // Eschew the faster pointer access for the more understandable .at<>()
-  // for now...
-  //
-  //if( quasiX.isContinuous() && quasiY.isContinuous() && _dst.isContinuous() )
-  //{
-  //  size.width *= size.height;
-  //  size.height = 1;
-  // }
-
-  for( int i = 0; i < size.height; i++ )
-  {
-    for( int j = 0; j < size.width; j++ )
-    {
-      Vec4f px = chu.at<Vec4f>(i,j);
-      
-      // Remember the four channels of chu = [ Hx, Hy, Sx, Sy]
-      float xx = px[0]*px[0] + px[2]*px[2];
-      float xy = px[0]*px[1] + px[2]*px[3];
-      float yy = px[1]*px[1] + px[3]*px[3];
+   for( int i = 0; i < size.height; i++ ) {
+    for( int j = 0; j < size.width; j++ ) {
+      Vec3f _m = m.at<Vec3f>(i,j);
+      float xx = _m[0], xy = _m[1], yy = _m[2];
 
       _dst.at<float>(i,j) = xx*yy - xy*xy - k*(xx+yy)*(xx+yy);
 
-      if( (i == 210) && (j == 73) ) {
+      if( (i == 561) && (j == 163) ) {
+        cout << "k = " << k << endl;
         cout << "At " << i << "," << j << " xx = " << xx << " xy = " << xy << " yy = " << yy << endl;
         cout << "At " << i << "," << j << " I = " << _dst.at<float>(i,j) << endl;
       }
@@ -160,22 +146,17 @@ static void chuQuasiInvariantHarris( const Mat &chu, Mat &_dst, double k )
 
 }
 
-static void chuQuasiInvariantMinEigen( const Mat &chu, Mat &_dst )
+static void chuQuasiInvariantMinEigen( const Mat &m, Mat &_dst )
 {
-  _dst.create( chu.size(), CV_32F );
-
-  Size size = chu.size();
+  _dst.create( m.size(), CV_32F );
+  Size size = m.size();
 
   for( int i = 0; i < size.height; i++ )
   {
     for( int j = 0; j < size.width; j++ )
     {
-      Vec4f px = chu.at<Vec4f>(i,j);
-      
-      // Remember the four channels of chu = [ Hx, Hy, Sx, Sy]
-      float xx = px[0]*px[0] + px[2]*px[2];
-      float xy = px[0]*px[1] + px[2]*px[3];
-      float yy = px[1]*px[1] + px[3]*px[3];
+      Vec3f px = m.at<Vec3f>(i,j);
+      float xx = px[0], xy = px[1], yy = px[2];
 
       _dst.at<float>(i,j) = (xx+yy) - std::sqrt( (xx-yy)*(xx-yy) + xy*xy );
     }
@@ -198,10 +179,11 @@ static void harrisCommon( Mat &eig,
     double harrisK )
 {
   Mat tmp;
-  double maxVal = 0, minVal;
+  double maxVal = 0, minVal = 0;
   minMaxLoc( eig, &minVal, &maxVal, 0, 0, mask );
   cout << "Found maximum value " << maxVal << endl;
   cout << "Found minimum value " << minVal << endl;
+  cout << "Quality level " << qualityLevel<< endl;
 
   threshold( eig, eig, maxVal*qualityLevel, 0, THRESH_TOZERO );
   dilate( eig, tmp, Mat());
@@ -359,7 +341,30 @@ void chuQuasiInvariantFeaturesToTrack( const Mat &chu,
 
   CV_Assert( chu.channels() == 4 );
   CV_Assert( qualityLevel > 0 && minDistance >= 0 && maxCorners >= 0 );
+ 
+  Size size = chu.size();
+  Mat m_mat( size, CV_32FC3 );
 
+  for( int i = 0; i < size.height; i++ ) {
+    for( int j = 0; j < size.width; j++ ) {
+      Vec4f px = chu.at<Vec4f>(i,j);
+      Vec3f m;
+
+      // Remember the four channels of chu = [ Hx, Hy, Sx, Sy]
+      // Store the entries of M: xx, xy, yy
+      m[0] = px[0]*px[0] + px[2]*px[2];
+      m[1] = px[0]*px[1] + px[2]*px[3];
+      m[2] = px[1]*px[1] + px[3]*px[3];
+
+      m_mat.at<Vec3f>(i,j) = m;
+    }
+  }
+
+  // Gaussian smooth M
+  Size ksize( 0,0 );
+  GaussianBlur( m_mat, m_mat, ksize, 2 );
+  
+  // Stores the resulting Harris I or minimum Eigenvalues
   Mat eig;
 
   if( useHarrisDetector )
