@@ -47,6 +47,8 @@ void normalizedColorImage( Mat &src, Mat &dst )
 // Generates the Hx, Hy, Sx, and Sy color invariants from Chu et al 
 // "Color-based corner detection by color invariance."
 // DOI: 10.1109/HAVE.2011.6088390
+//
+// Stores them in a 4-channel mat in this order (Hx, Hy, Sx, Sy)
 void generateChuQuasiInvariants( Mat &src, Mat &dst )
 {
   Size sz = src.size();
@@ -102,18 +104,19 @@ void generateChuQuasiInvariants( Mat &src, Mat &dst )
       float ey = ey_p[0], ely = ey_p[1], elly = ey_p[2];
       Vec4f out;
 
-      out[0] = (ell - el * ellx )/(el*el + ell*ell);
-      out[1] = (ell - el * elly )/(el*el + ell*ell);
+      float hdenom = el*el + ell*ell;
+      out[0] = (ell * elx - el * ellx )/hdenom;
+      out[1] = (ell * ely - el * elly )/hdenom;
 
-      float sdenom = (el*el + ell*ell +e*e) * sqrt( el*el+ell*ell );
-      out[2] = ( ex * (el*el + ell*ell) - e * (el*elx +ell*ellx) )/ sdenom;
-      out[3] = ( ey * (el*el + ell*ell) - e * (el*ely +ell*elly) )/ sdenom;
+      float sdenom = (e*e + el*el + ell*ell) * sqrt( el*el+ell*ell );
+      out[2] = ( e * (el*elx +ell*ellx) - ex * (el*el + ell*ell))/denom;
+      out[3] = ( e * (el*ely +ell*elly) - ey * (el*el + ell*ell))/ sdenom;
 
-      if( (i == 100) && (j==100) ) {
-        cout << "e  " << i << "," << j << " ==> " << e_p[0] << "," << e_p[1] << "," << e_p[2] <<  endl;
-        cout << "ex " << i << "," << j << " ==> " << ex_p[0] << "," << ex_p[1] << "," << ex_p[2] << endl;
-        cout << "ey " << i << "," << j << " ==> " << ey_p[0] << "," << ey_p[1] << "," << ey_p[2] << endl;
-        cout << "At " << i << "," << j << " ==> " << out[0] << "," << out[1] << "," << out[2] << "," << out[3] << endl;
+      if( (i == 210) && (j==73) ) {
+        cout << "e   " << i << "," << j << " ==> " << e_p[0] << "," << e_p[1] << "," << e_p[2] <<  endl;
+        cout << "ex  " << i << "," << j << " ==> " << ex_p[0] << "," << ex_p[1] << "," << ex_p[2] << endl;
+        cout << "ey  " << i << "," << j << " ==> " << ey_p[0] << "," << ey_p[1] << "," << ey_p[2] << endl;
+        cout << "Hx,Hy,Sx,Sy " << i << "," << j << " ==> " << out[0] << "," << out[1] << "," << out[2] << "," << out[3] << endl;
       }
 
       dst.at<Vec4f>(i,j) = out;
@@ -148,8 +151,10 @@ static void chuQuasiInvariantHarris( const Mat &chu, Mat &_dst, double k )
 
       _dst.at<float>(i,j) = xx*yy - xy*xy - k*(xx+yy)*(xx+yy);
 
-      if( (i==100) && (j==100) )
+      if( (i == 210) && (j == 73) ) {
+        cout << "At " << i << "," << j << " xx = " << xx << " xy = " << xy << " yy = " << yy << endl;
         cout << "At " << i << "," << j << " I = " << _dst.at<float>(i,j) << endl;
+      }
     }
   }
 
@@ -193,8 +198,11 @@ static void harrisCommon( Mat &eig,
     double harrisK )
 {
   Mat tmp;
-  double maxVal = 0;
-  minMaxLoc( eig, 0, &maxVal, 0, 0, mask );
+  double maxVal = 0, minVal;
+  minMaxLoc( eig, &minVal, &maxVal, 0, 0, mask );
+  cout << "Found maximum value " << maxVal << endl;
+  cout << "Found minimum value " << minVal << endl;
+
   threshold( eig, eig, maxVal*qualityLevel, 0, THRESH_TOZERO );
   dilate( eig, tmp, Mat());
 

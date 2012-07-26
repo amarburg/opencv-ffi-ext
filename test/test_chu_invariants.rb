@@ -37,12 +37,13 @@ class TestChuColorInvariance < Test::Unit::TestCase
     chu_invariants = CVFFI::cvCreateMat( img.height, img.width, :CV_32FC4 )
     cvGenerateChuQuasiInvariants( img, chu_invariants )
 
-    params = CVFFI::GoodFeaturesParams.new( use_harris: true )
+    params = CVFFI::GoodFeaturesParams.new( use_harris: true, quality_level: 0.5 )
     corners = chuQuasiInvariantFeatures( chu_invariants, params )
     puts "Chu quasi invariant found #{corners.length} features"
 
     feature_img = img.clone
     corners.each { |corner|
+      puts "Corner at #{corner.x} x #{corner.y}"
       CVFFI::cvCircle( feature_img, CVFFI::CvPoint.new( :x => corner.x, :y => corner.y ), 20,
                                             CVFFI::CvScalar.new( :w=>255, :x=>255, :y=>0, :z=>0 ), -1, 8, 0 )
     }
