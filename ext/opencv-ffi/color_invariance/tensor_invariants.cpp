@@ -44,6 +44,327 @@ void normalizedColorImage( Mat &src, Mat &dst )
   }
 }
 
+// Generates the Hx, Hy, Sx, and Sy color invariants from Chu et al 
+// "Color-based corner detection by color invariance."
+// DOI: 10.1109/HAVE.2011.6088390
+void generateChuQuasiInvariants( Mat &src, Mat &dst )
+{
+  Size sz = src.size();
+
+  CV_Assert( src.channels() == 3 );
+  CV_Assert( src.depth() == CV_32F );
+
+  dst.create( src.size(), CV_32FC4 );
+
+  CV_Assert( src.depth() == dst.depth() );
+  CV_Assert( dst.channels() == 4 );
+
+  //cout << "Size is " << sz.width << "x" << sz.height << endl;
+
+  Mat e_mat( src.size(), CV_MAKETYPE( CV_32F, 3 ) );
+
+  for( int i = 0; i < sz.height; i++ ) {
+    for( int j = 0; j < sz.width; j++ ) {
+      Pixel px = src.at<Pixel>( i,j );
+
+      // TODO:  Doesn't correct for other channel orderings
+      float b = px[0], g = px[1], r = px[2];
+
+      float e   = 0.06 * r + 0.63 * g + 0.27 * b;
+      float el  =  0.3 * r + 0.04 *g  - 0.35 * b;
+      float ell = 0.34 * r - 0.6 * g  + 0.17 * b;
+
+      Pixel out;
+      out[0] = e; out[1] = el; out[2] = ell;
+      e_mat.at<Pixel>(i,j) = out;
+
+      if( (i == 100) && (j==100) ) {
+      cout << "Original  r: " << r << "  g: " << g << " b: " << b << endl;
+      }
+
+    }
+  }
+
+  Mat ex_mat( e_mat.size(), e_mat.type() );
+  Mat ey_mat( e_mat.size(), e_mat.type() );
+
+  Sobel( e_mat, ex_mat, CV_SCHARR, 1, 0, 3 );
+  Sobel( e_mat, ey_mat, CV_SCHARR, 0, 1, 3 );
+
+  for( int i = 0; i < sz.height; i++ ) {
+    for( int j = 0; j < sz.width; j++ ) {
+      Pixel e_p  = e_mat.at<Pixel>(i,j);
+      Pixel ex_p = ex_mat.at<Pixel>(i,j);
+      Pixel ey_p = ey_mat.at<Pixel>(i,j);
+
+      float e = e_p[0], el = e_p[1], ell = e_p[2];
+      float ex = ex_p[0], elx = ex_p[1], ellx = ex_p[2];
+      float ey = ey_p[0], ely = ey_p[1], elly = ey_p[2];
+      Vec4f out;
+
+      out[0] = (ell - el * ellx )/(el*el + ell*ell);
+      out[1] = (ell - el * elly )/(el*el + ell*ell);
+
+      float sdenom = (el*el + ell*ell +e*e) * sqrt( el*el+ell*ell );
+      out[2] = ( ex * (el*el + ell*ell) - e * (el*elx +ell*ellx) )/ sdenom;
+      out[3] = ( ey * (el*el + ell*ell) - e * (el*ely +ell*elly) )/ sdenom;
+
+      if( (i == 100) && (j==100) ) {
+        cout << "e  " << i << "," << j << " ==> " << e_p[0] << "," << e_p[1] << "," << e_p[2] <<  endl;
+        cout << "ex " << i << "," << j << " ==> " << ex_p[0] << "," << ex_p[1] << "," << ex_p[2] << endl;
+        cout << "ey " << i << "," << j << " ==> " << ey_p[0] << "," << ey_p[1] << "," << ey_p[2] << endl;
+        cout << "At " << i << "," << j << " ==> " << out[0] << "," << out[1] << "," << out[2] << "," << out[3] << endl;
+      }
+
+      dst.at<Vec4f>(i,j) = out;
+    }
+  }
+}
+
+static void chuQuasiInvariantHarris( const Mat &chu, Mat &_dst, double k )
+{
+  _dst.create( chu.size(), CV_32F );
+  Size size = chu.size();
+
+  // Eschew the faster pointer access for the more understandable .at<>()
+  // for now...
+  //
+  //if( quasiX.isContinuous() && quasiY.isContinuous() && _dst.isContinuous() )
+  //{
+  //  size.width *= size.height;
+  //  size.height = 1;
+  // }
+
+  for( int i = 0; i < size.height; i++ )
+  {
+    for( int j = 0; j < size.width; j++ )
+    {
+      Vec4f px = chu.at<Vec4f>(i,j);
+      
+      // Remember the four channels of chu = [ Hx, Hy, Sx, Sy]
+      float xx = px[0]*px[0] + px[2]*px[2];
+      float xy = px[0]*px[1] + px[2]*px[3];
+      float yy = px[1]*px[1] + px[3]*px[3];
+
+      _dst.at<float>(i,j) = xx*yy - xy*xy - k*(xx+yy)*(xx+yy);
+
+      if( (i==100) && (j==100) )
+        cout << "At " << i << "," << j << " I = " << _dst.at<float>(i,j) << endl;
+    }
+  }
+
+}
+
+static void chuQuasiInvariantMinEigen( const Mat &chu, Mat &_dst )
+{
+  _dst.create( chu.size(), CV_32F );
+
+  Size size = chu.size();
+
+  for( int i = 0; i < size.height; i++ )
+  {
+    for( int j = 0; j < size.width; j++ )
+    {
+      Vec4f px = chu.at<Vec4f>(i,j);
+      
+      // Remember the four channels of chu = [ Hx, Hy, Sx, Sy]
+      float xx = px[0]*px[0] + px[2]*px[2];
+      float xy = px[0]*px[1] + px[2]*px[3];
+      float yy = px[1]*px[1] + px[3]*px[3];
+
+      _dst.at<float>(i,j) = (xx+yy) - std::sqrt( (xx-yy)*(xx-yy) + xy*xy );
+    }
+  }
+
+}
+
+template<typename T> struct greaterThanPtr
+{
+      bool operator()(const T* a, const T* b) const { return *a > *b; }
+};
+
+// Contains code common to the Harris-style functions after the computation
+// of the response variable.
+static void harrisCommon( Mat &eig,
+    OutputArray _corners,
+    int maxCorners, double qualityLevel, double minDistance,
+    const Mat &mask,
+    bool useHarrisDetector,
+    double harrisK )
+{
+  Mat tmp;
+  double maxVal = 0;
+  minMaxLoc( eig, 0, &maxVal, 0, 0, mask );
+  threshold( eig, eig, maxVal*qualityLevel, 0, THRESH_TOZERO );
+  dilate( eig, tmp, Mat());
+
+  Size imgsize = eig.size();
+
+  vector<const float*> tmpCorners;
+
+  // collect list of pointers to features - put them into temporary image
+  for( int y = 1; y < imgsize.height - 1; y++ )
+  {
+    const float* eig_data = (const float*)eig.ptr(y);
+    const float* tmp_data = (const float*)tmp.ptr(y);
+    const uchar* mask_data = mask.data ? mask.ptr(y) : 0;
+
+    for( int x = 1; x < imgsize.width - 1; x++ )
+    {
+      float val = eig_data[x];
+      if( val != 0 && val == tmp_data[x] && (!mask_data || mask_data[x]) )
+        tmpCorners.push_back(eig_data + x);
+    }
+  }
+
+  sort( tmpCorners, greaterThanPtr<float>() );
+  vector<Point2f> corners;
+  size_t i, j, total = tmpCorners.size(), ncorners = 0;
+
+  if(minDistance >= 1)
+  {
+    // Partition the image into larger grids
+    int w = eig.cols;
+    int h = eig.rows;
+
+    const int cell_size = cvRound(minDistance);
+    const int grid_width = (w + cell_size - 1) / cell_size;
+    const int grid_height = (h + cell_size - 1) / cell_size;
+
+    std::vector<std::vector<Point2f> > grid(grid_width*grid_height);
+
+    minDistance *= minDistance;
+
+    for( i = 0; i < total; i++ )
+    {
+      int ofs = (int)((const uchar*)tmpCorners[i] - eig.data);
+      int y = (int)(ofs / eig.step);
+      int x = (int)((ofs - y*eig.step)/sizeof(float));
+
+      bool good = true;
+
+      int x_cell = x / cell_size;
+      int y_cell = y / cell_size;
+      int x1 = x_cell - 1;
+      int y1 = y_cell - 1;
+      int x2 = x_cell + 1;
+      int y2 = y_cell + 1;
+
+      // boundary check
+      x1 = std::max(0, x1);
+      y1 = std::max(0, y1);
+      x2 = std::min(grid_width-1, x2);
+      y2 = std::min(grid_height-1, y2);
+
+      for( int yy = y1; yy <= y2; yy++ )
+      {
+        for( int xx = x1; xx <= x2; xx++ )
+        {   
+          vector <Point2f> &m = grid[yy*grid_width + xx];
+
+          if( m.size() )
+          {
+            for(j = 0; j < m.size(); j++)
+            {
+              float dx = x - m[j].x;
+              float dy = y - m[j].y;
+
+              if( dx*dx + dy*dy < minDistance )
+              {
+                good = false;
+                goto break_out;
+              }
+            }
+          }                
+        }
+      }
+
+break_out:
+
+      if(good)
+      {
+        // printf("%d: %d %d -> %d %d, %d, %d -- %d %d %d %d, %d %d, c=%d\n",
+        //    i,x, y, x_cell, y_cell, (int)minDistance, cell_size,x1,y1,x2,y2, grid_width,grid_height,c);
+        grid[y_cell*grid_width + x_cell].push_back(Point2f((float)x, (float)y));
+
+        corners.push_back(Point2f((float)x, (float)y));
+        ++ncorners;
+
+        if( maxCorners > 0 && (int)ncorners == maxCorners )
+          break;
+      }
+    }
+  }
+  else
+  {
+    for( i = 0; i < total; i++ )
+    {
+      int ofs = (int)((const uchar*)tmpCorners[i] - eig.data);
+      int y = (int)(ofs / eig.step);
+      int x = (int)((ofs - y*eig.step)/sizeof(float));
+
+      corners.push_back(Point2f((float)x, (float)y));
+      ++ncorners;
+      if( maxCorners > 0 && (int)ncorners == maxCorners )
+        break;
+    }
+  }
+
+  Mat(corners).convertTo(_corners, _corners.fixedType() ? _corners.type() : CV_32F);
+
+  /*
+     for( i = 0; i < total; i++ )
+     {
+     int ofs = (int)((const uchar*)tmpCorners[i] - eig.data);
+     int y = (int)(ofs / eig.step);
+     int x = (int)((ofs - y*eig.step)/sizeof(float));
+
+     if( minDistance > 0 )
+     {
+     for( j = 0; j < ncorners; j++ )
+     {
+     float dx = x - corners[j].x;
+     float dy = y - corners[j].y;
+     if( dx*dx + dy*dy < minDistance )
+     break;
+     }
+     if( j < ncorners )
+     continue;
+     }
+
+     corners.push_back(Point2f((float)x, (float)y));
+     ++ncorners;
+     if( maxCorners > 0 && (int)ncorners == maxCorners )
+     break;
+     }
+     */
+}
+
+// Lift of the stock goodFeaturesToTrack, using Chu's H and S quasi invariants for the calculation
+void chuQuasiInvariantFeaturesToTrack( const Mat &chu,
+    OutputArray _corners,
+    int maxCorners, double qualityLevel, double minDistance,
+    const Mat &mask, 
+    bool useHarrisDetector,
+    double harrisK )
+{
+
+  CV_Assert( chu.channels() == 4 );
+  CV_Assert( qualityLevel > 0 && minDistance >= 0 && maxCorners >= 0 );
+
+  Mat eig;
+
+  if( useHarrisDetector )
+    chuQuasiInvariantHarris( chu, eig, harrisK );
+  else
+    chuQuasiInvariantMinEigen( chu, eig );
+
+  harrisCommon( eig, _corners,
+      maxCorners, qualityLevel, minDistance,
+      mask, useHarrisDetector, harrisK );
+}
+
+
 
 // Implements the algorithms in section II.c of van de Weijer, Gevers and Smeulders
 // "Robust Photometric Invariant Features From the Color Tensor"
@@ -105,85 +426,20 @@ void generateSQuasiInvariant( Mat &src, Mat &scx, Mat &scy )
 
       sx.at<Pixel>( i,j ) = fhat * sdot( fx.at<Pixel>(i,j), fhat );
       scx.at<Pixel>(i,j ) = (fx.at<Pixel>(i,j) - sx.at<Pixel>(i,j)); 
-//      if( i == 100 and j == 108 ) {
-//        Pixel s = sx.at<Pixel>(i,j), sc = scx.at<Pixel>(i,j), f = fx.at<Pixel>(i,j);
+      //      if( i == 100 and j == 108 ) {
+      //        Pixel s = sx.at<Pixel>(i,j), sc = scx.at<Pixel>(i,j), f = fx.at<Pixel>(i,j);
 
-//        cout << "fhat " << fhat[0] << "," << fhat[1] << "," << fhat[2] <<endl;
-//        cout << "fx " << f[0] << "," << f[1] << "," << f[2] <<endl;
-//        cout << "sx  " << s[0] << "," << s[1] << "," << s[2] << endl;
-//        cout << "scx " << sc[0] << "," << sc[1] << "," << sc[2] << endl;
-//      }
+      //        cout << "fhat " << fhat[0] << "," << fhat[1] << "," << fhat[2] <<endl;
+      //        cout << "fx " << f[0] << "," << f[1] << "," << f[2] <<endl;
+      //        cout << "sx  " << s[0] << "," << s[1] << "," << s[2] << endl;
+      //        cout << "scx " << sc[0] << "," << sc[1] << "," << sc[2] << endl;
+      //      }
 
       sy.at<Pixel>( i,j ) = fhat * sdot( fy.at<Pixel>(i,j), fhat );
       scy.at<Pixel>(i,j ) = (fy.at<Pixel>(i,j) - sy.at<Pixel>(i,j)); 
     }
   }
 }
-
-static void quasiInvariantHarris( const Mat &quasiX, const Mat &quasiY, Mat &_dst, double k )
-{
-  _dst.create( quasiX.size(), CV_32F );
-  CV_Assert( quasiX.size() == quasiY.size() );
-
-  Size size = quasiX.size();
-
-  // Eschew the faster pointer access for the more understandable .at<>()
-  // for now...
-  //
-  //if( quasiX.isContinuous() && quasiY.isContinuous() && _dst.isContinuous() )
-  //{
-  //  size.width *= size.height;
-  //  size.height = 1;
-  // }
-
-  for( int i = 0; i < size.height; i++ )
-  {
-    for( int j = 0; j < size.width; j++ )
-    {
-      Pixel x = quasiX.at<Pixel>(i,j);
-      Pixel y = quasiY.at<Pixel>(i,j);
-
-      float xx = sdot( x, x ), yy = sdot( y,y ), xy = sdot(x,y);
-      _dst.at<float>(i,j) = xx*yy - xy*xy - k*(xx+yy)*(xx+yy);
-    }
-  }
-
-}
-
-static void quasiInvariantMinEigen( const Mat &quasiX, const Mat &quasiY, Mat &_dst )
-{
-  _dst.create( quasiX.size(), CV_32F );
-  CV_Assert( quasiX.size() == quasiY.size() );
-
-  Size size = quasiX.size();
-
-  // Eschew the faster pointer access for the more understandable .at<>()
-  // for now...
-  //
-  //if( quasiX.isContinuous() && quasiY.isContinuous() && _dst.isContinuous() )
-  //{
-  //  size.width *= size.height;
-  //  size.height = 1;
-  // }
-
-  for( int i = 0; i < size.height; i++ )
-  {
-    for( int j = 0; j < size.width; j++ )
-    {
-      Pixel x = quasiX.at<Pixel>(i,j);
-      Pixel y = quasiY.at<Pixel>(i,j);
-
-      float xx = sdot( x, x )*0.5f, yy = sdot( y,y )*0.5f, xy = sdot(x,y);
-      _dst.at<float>(i,j) = (xx+yy) - std::sqrt( (xx-yy)*(xx-yy) + xy*xy );
-    }
-  }
-
-}
-
-template<typename T> struct greaterThanPtr
-{
-      bool operator()(const T* a, const T* b) const { return *a > *b; }
-};
 
 // Lift of the stock goodFeaturesToTrack, using quasiinvariants for Harris calculation
 void quasiInvariantFeaturesToTrack( const Mat &quasiX, 
@@ -201,9 +457,11 @@ void quasiInvariantFeaturesToTrack( const Mat &quasiX,
   Mat eig, tmp;
 
   if( useHarrisDetector )
-    quasiInvariantHarris( quasiX, quasiY, eig, harrisK );
+//    quasiInvariantHarris( quasiX, quasiY, eig, harrisK );
+    ;
   else
-    quasiInvariantMinEigen( quasiX, quasiY, eig );
+//    quasiInvariantMinEigen( quasiX, quasiY, eig );
+    ;
 
   double maxVal = 0;
   minMaxLoc( eig, 0, &maxVal, 0, 0, mask );
@@ -358,7 +616,7 @@ using namespace cv;
 
 
 extern "C" {
-    void cvNormalizedColorImage( CvMat *srcarr, CvMat *dstarr )
+  void cvNormalizedColorImage( CvMat *srcarr, CvMat *dstarr )
   {
     Mat src = cvarrToMat(srcarr);
     Mat cvtSrc;
@@ -395,6 +653,43 @@ extern "C" {
     }
   }
 
+
+  void cvGenerateChuQuasiInvariants( CvMat *srcarr, CvMat *dstarr )
+  {
+    Mat src = cvarrToMat(srcarr);
+    Mat cvtSrc;
+
+    // Input must be cast to 32FC3
+    CV_Assert( src.channels() == 3 );
+    switch( src.depth() ) {
+      case CV_8U:
+        src.convertTo( cvtSrc, CV_32F, 1.0/255.0, 0 );
+        break;
+      case CV_32F:
+        cvtSrc = src;
+        break;
+      default:
+        cout << "cvGenerateChuColorInvariants cannot deal with type " << src.depth() << endl;
+    }
+
+    Mat dstmat = cvarrToMat(dstarr), dst;
+
+    cv::generateChuQuasiInvariants( cvtSrc, dst );
+
+    // Cast back to the type of dstarr
+    switch( dstmat.depth() ) {
+      case CV_8U:
+        dst.convertTo( dstmat, CV_8U, 256.0, 0 );
+        break;
+      case CV_32F:
+        // Strictly speaking, you should be able to set scx.data == dstx
+        // but the syntax escapes me...
+        dst.copyTo( dstmat );
+        break;
+      default:
+        cout << "cvGenerateChuColorInvariant cannot deal with type " << dstmat.depth() << endl;
+    }
+  }
 
   void cvGenerateColorTensor( CvMat *srcarr, CvMat *scx, CvMat *scy )
   {
@@ -480,6 +775,30 @@ extern "C" {
     //CV_Assert( dsty.data == dsty0.data );
   }
 
+  void cvChuQuasiInvariantFeaturesToTrack( const Mat *_chu,
+      CvPoint2D32f* _corners, int *_corner_count,
+      double quality_level, double min_distance,
+      const void* _maskImage, 
+      int use_harris, double harris_k )
+  {
+    cv::Mat chu = cv::cvarrToMat(_chu), mask;
+    cv::vector<cv::Point2f> corners;
+
+    if( _maskImage )
+      mask = cv::cvarrToMat(_maskImage);
+
+    CV_Assert( _corners && _corner_count );
+    cv::chuQuasiInvariantFeaturesToTrack( chu, corners, *_corner_count, quality_level,
+        min_distance, mask, use_harris != 0, harris_k );
+
+    size_t i, ncorners = corners.size();
+    for( i = 0; i < ncorners; i++ ) {
+      _corners[i] = corners[i];
+    }
+    *_corner_count = (int)ncorners;
+  }
+
+
   void cvQuasiInvariantFeaturesToTrack( const Mat *_quasiX, const Mat *_quasiY, 
       CvPoint2D32f* _corners, int *_corner_count,
       double quality_level, double min_distance,
@@ -487,8 +806,8 @@ extern "C" {
       int use_harris, double harris_k )
   {
     cv::Mat imageX = cv::cvarrToMat(_quasiX), 
-            imageY = cv::cvarrToMat(_quasiY), 
-            mask;
+    imageY = cv::cvarrToMat(_quasiY), 
+    mask;
     cv::vector<cv::Point2f> corners;
 
     if( _maskImage )

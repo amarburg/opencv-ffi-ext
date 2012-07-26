@@ -55,5 +55,14 @@ class TestColorInvariance < Test::Unit::TestCase
     TestSetup::save_image("color_invariance_lab_b", ell_colored )
   end
 
+  def test_chu_color_invariants
+    img = @img_one.clone
+    assert_not_nil img
+
+    chu_invariants = CVFFI::cvCreateMat( img.image_size.to_CvSize, :CV_32F, 4 )
+
+    CVFFI::cvGenerateChuColorInvariants( img, chu_invariants )
+  end
+
 
 end

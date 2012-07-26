@@ -41,7 +41,7 @@ module CVFFI
     ## Just a thin wrapper until I start monkeying with the Homography
     #  estimator as well.
     def self.estimateHomography( points1, points2, params )
-      puts "Running my fundamental calculation."
+      puts "Running my homography calculation."
       CVFFI::findHomography( points1, points2, CvRansacMethod[ params.method ], params.outlier_threshold )
     end
   end
