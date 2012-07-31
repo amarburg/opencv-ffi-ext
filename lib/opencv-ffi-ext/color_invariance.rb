@@ -26,7 +26,8 @@ module CVFFI
 
     enum :quasiInvariants, [ :H_QUASI_INVARIANT, 0,
                              :S_QUASI_INVARIANT, 
-                             :HS_QUASI_INVARIANTS ]
+                             :HS_QUASI_INVARIANTS, 
+                             :GREYSCALE ]
 
     attach_function :cvGenerateQuasiInvariant, [ :int, :pointer, :pointer, :pointer ], :void
     attach_function :cvGenerateSQuasiInvariant, [ :pointer, :pointer, :pointer ], :void
@@ -34,7 +35,7 @@ module CVFFI
     attach_function :cvGenerateChuQuasiInvariants, [ :pointer, :pointer ], :void
 
     attach_function :cvQuasiInvariantFeaturesToTrack, [ :int, :pointer, :pointer, 
-                                                   :pointer, :double, :double,
+                                                   :pointer, :double, :double, :int,
                                                    :pointer, :int, :double ], :void
 
 
@@ -46,7 +47,7 @@ module CVFFI
 
     cvQuasiInvariantFeaturesToTrack( which, m.to_CvMat, 
                                     corners, max_corners, 
-                                 params.quality_level, params.min_distance, params.mask,
+                                 params.quality_level, params.min_distance, params.block_size, params.mask,
                                  params.use_harris ? 1 : 0, params.k )
 
     num_corners = max_corners.read_int 
@@ -63,6 +64,9 @@ module CVFFI
     quasiInvariantFeatures( :H_QUASI_INVARIANT, m, params )
   end
 
+  def greyscaleQuasiInvariantFeatures( m, params = CVFFI::GoodFeaturesParams.new )
+    quasiInvariantFeatures( :GREYSCALE, m, params )
+  end
   end
 end
 

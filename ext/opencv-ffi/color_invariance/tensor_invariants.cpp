@@ -46,7 +46,7 @@ namespace cv {
 
   enum QuasiInvariant { H_QUASI_INVARIANT = 0, 
     S_QUASI_INVARIANT, 
-    HS_QUASI_INVARIANTS };
+    HS_QUASI_INVARIANTS, GREYSCALE };
 
   // Generates the Hx, Hy, Sx, and Sy color invariants from Geusebroek et al
   // "Color Invariance"
@@ -58,9 +58,13 @@ namespace cv {
   //
   //
   // Stores them in a 4-channel mat in this order (Hx, Hy, Sx, Sy)
-  void generateQuasiInvariants( const Mat &src, Mat &dst, QuasiInvariant which )
+  void generateQuasiInvariants( const Mat &src, Mat &dst, QuasiInvariant which,
+      int aperture_size = 3, int block_size = 3 )
   {
     Size sz = src.size();
+
+    // This is fixed in the OpenCV implementation of GoodFeaturesToTrack
+    double scale = (double)(1 << ((aperture_size > 0 ? aperture_size : 3) - 1)) * block_size;
 
     CV_Assert( src.channels() == 3 );
     CV_Assert( src.depth() == CV_32F );
@@ -74,88 +78,147 @@ namespace cv {
     CV_Assert( src.depth() == dst.depth() );
     //cout << "Size is " << sz.width << "x" << sz.height << endl;
 
-    Mat e_mat( src.size(), CV_32FC3 );
+    if( which == GREYSCALE ) {
 
-    for( int i = 0; i < sz.height; i++ ) {
-      for( int j = 0; j < sz.width; j++ ) {
-        Pixel px = src.at<Pixel>( i,j );
+      Mat g_mat( src.size(), CV_32FC1 );
 
-        // TODO:  Doesn't correct for other channel orderings
-        float b = px[0], g = px[1], r = px[2];
+      for( int i = 0; i < sz.height; i++ ) {
+        for( int j = 0; j < sz.width; j++ ) {
+          Pixel px = src.at<Pixel>( i,j );
 
-        float e   = 0.06 * r + 0.63 * g + 0.27 * b;
-        float el  =  0.3 * r + 0.04 *g  - 0.35 * b;
-        float ell = 0.34 * r - 0.6 * g  + 0.17 * b;
+          // TODO:  Doesn't correct for other channel orderings
+          float b = px[0], g = px[1], r = px[2];
 
-        Pixel out;
-        out[0] = e; out[1] = el; out[2] = ell;
-        e_mat.at<Pixel>(i,j) = out;
-
-        //if( (i == 100) && (j==100) ) {
-        //      cout << "Original  r: " << r << "  g: " << g << " b: " << b << endl;
-        //      }
-
+          g_mat.at<float>(i,j) = 0.299*r +  0.587*g + 0.114*b;
+        }
       }
-    }
 
-    Mat ex_mat( e_mat.size(), e_mat.type() );
-    Mat ey_mat( e_mat.size(), e_mat.type() );
+      Mat dx_mat( g_mat.size(), g_mat.type() );
+      Mat dy_mat( g_mat.size(), g_mat.type() );
 
-    Sobel( e_mat, ex_mat, CV_SCHARR, 1, 0, 3 );
-    Sobel( e_mat, ey_mat, CV_SCHARR, 0, 1, 3 );
+      if( aperture_size > 0 )
+      {
+        Sobel( g_mat, dx_mat, CV_32F, 1, 0, aperture_size, scale, 0 ); //, borderType );
+        Sobel( g_mat, dy_mat, CV_32F, 0, 1, aperture_size, scale, 0 ); //, borderType );
+      }
+      else
+      {
+        Scharr( g_mat, dx_mat, CV_32F, 1, 0, scale, 0 ); //, borderType );
+        Scharr( g_mat, dy_mat, CV_32F, 0, 1, scale, 0 ); //, borderType );
+      }
 
-    for( int i = 0; i < sz.height; i++ ) {
-      for( int j = 0; j < sz.width; j++ ) {
-        Pixel e_p  = e_mat.at<Pixel>(i,j);
-        Pixel ex_p = ex_mat.at<Pixel>(i,j);
-        Pixel ey_p = ey_mat.at<Pixel>(i,j);
+      //Sobel( e_mat, ex_mat, -1, 1, 0, CV_SCHARR );
+      //Sobel( e_mat, ey_mat, -1, 0, 1, CV_SCHARR );
 
-        float e = e_p[0], el = e_p[1], ell = e_p[2];
-        float ex = ex_p[0], elx = ex_p[1], ellx = ex_p[2];
-        float ey = ey_p[0], ely = ey_p[1], elly = ey_p[2];
+      for( int i = 0; i < sz.height; i++ ) {
+        for( int j = 0; j < sz.width; j++ ) {
+          Vec2f out;
+          out[0] = dx_mat.at<float>(i,j);
+          out[1] = dy_mat.at<float>(i,j);
+          dst.at<Vec2f>(i,j) = out;
+       }
+      }
 
-        Vec2f out;
-        Vec4f outt;
-        float hdenom, sdenom;
+    } else {
 
-        // TODO:  Fix the DRY here.
-        switch( which )  {
-          case HS_QUASI_INVARIANTS:
-            hdenom = el*el + ell*ell;
-            outt[0] = (ell * elx - el * ellx )/hdenom;
-            outt[1] = (ell * ely - el * elly )/hdenom;
-            sdenom = (e*e + el*el + ell*ell) * sqrt( el*el+ell*ell );
-            outt[2] = ( e * (el*elx +ell*ellx) - ex * (el*el + ell*ell))/ sdenom;
-            outt[3] = ( e * (el*ely +ell*elly) - ey * (el*el + ell*ell))/ sdenom;
-            dst.at<Vec4f>(i,j) = outt;
-            break;
-          case H_QUASI_INVARIANT:
-            hdenom = el*el + ell*ell;
-            out[0] = (ell * elx - el * ellx )/hdenom;
-            out[1] = (ell * ely - el * elly )/hdenom;
-            dst.at<Vec2f>(i,j) = out;
-            break;
-          case S_QUASI_INVARIANT:
-            sdenom = (e*e + el*el + ell*ell) * sqrt( el*el+ell*ell );
-            out[0] = ( e * (el*elx +ell*ellx) - ex * (el*el + ell*ell))/ sdenom;
-            out[1] = ( e * (el*ely +ell*elly) - ey * (el*el + ell*ell))/ sdenom;
-            dst.at<Vec2f>(i,j) = out;
-            break;
+      Mat e_mat( src.size(), CV_32FC3 );
+
+      for( int i = 0; i < sz.height; i++ ) {
+        for( int j = 0; j < sz.width; j++ ) {
+          Pixel px = src.at<Pixel>( i,j );
+
+          // TODO:  Doesn't correct for other channel orderings
+          float b = px[0], g = px[1], r = px[2];
+
+          float e   = 0.06 * r + 0.63 * g + 0.27 * b;
+          float el  =  0.3 * r + 0.04 *g  - 0.35 * b;
+          float ell = 0.34 * r - 0.6 * g  + 0.17 * b;
+
+          Pixel out;
+          out[0] = e; out[1] = el; out[2] = ell;
+          e_mat.at<Pixel>(i,j) = out;
+
+          //if( (i == 100) && (j==100) ) {
+          //      cout << "Original  r: " << r << "  g: " << g << " b: " << b << endl;
+          //      }
+
         }
+      }
 
-        if( (i == 561) && (j==163) ) {
-          cout << "e   " << i << "," << j << " ==> " << e_p[0] << "," << e_p[1] << "," << e_p[2] <<  endl;
-          cout << "ex  " << i << "," << j << " ==> " << ex_p[0] << "," << ex_p[1] << "," << ex_p[2] << endl;
-          cout << "ey  " << i << "," << j << " ==> " << ey_p[0] << "," << ey_p[1] << "," << ey_p[2] << endl;
-          cout << "Hx,Hy,Sx,Sy " << i << "," << j << " ==> " << outt[0] << "," << outt[1] << "," << outt[2] << "," << outt[3] << endl;
+      Mat ex_mat( e_mat.size(), e_mat.type() );
+      Mat ey_mat( e_mat.size(), e_mat.type() );
+
+      if( aperture_size > 0 )
+      {
+        Sobel( e_mat, ex_mat, CV_32F, 1, 0, aperture_size, scale, 0 ); //, borderType );
+        Sobel( e_mat, ey_mat, CV_32F, 0, 1, aperture_size, scale, 0 ); //, borderType );
+      }
+      else
+      {
+        Scharr( e_mat, ex_mat, CV_32F, 1, 0, scale, 0 ); //, borderType );
+        Scharr( e_mat, ey_mat, CV_32F, 0, 1, scale, 0 ); //, borderType );
+      }
+
+      //Sobel( e_mat, ex_mat, -1, 1, 0, CV_SCHARR );
+      //Sobel( e_mat, ey_mat, -1, 0, 1, CV_SCHARR );
+
+      for( int i = 0; i < sz.height; i++ ) {
+        for( int j = 0; j < sz.width; j++ ) {
+          Pixel e_p  = e_mat.at<Pixel>(i,j);
+          Pixel ex_p = ex_mat.at<Pixel>(i,j);
+          Pixel ey_p = ey_mat.at<Pixel>(i,j);
+
+          float e = e_p[0], el = e_p[1], ell = e_p[2];
+          float ex = ex_p[0], elx = ex_p[1], ellx = ex_p[2];
+          float ey = ey_p[0], ely = ey_p[1], elly = ey_p[2];
+
+          Vec2f out;
+          Vec4f outt;
+          float hdenom, sdenom;
+
+          // TODO:  Fix the DRY here.
+          switch( which )  {
+            case HS_QUASI_INVARIANTS:
+              hdenom = el*el + ell*ell;
+              outt[0] = (ell * elx - el * ellx )/hdenom;
+              outt[1] = (ell * ely - el * elly )/hdenom;
+              sdenom = (e*e + el*el + ell*ell) * sqrt( el*el+ell*ell );
+              outt[2] = ( e * (el*elx + ell*ellx) - ex * (el*el + ell*ell))/ sdenom;
+              outt[3] = ( e * (el*ely + ell*elly) - ey * (el*el + ell*ell))/ sdenom;
+              dst.at<Vec4f>(i,j) = outt;
+              break;
+            case H_QUASI_INVARIANT:
+              hdenom = el*el + ell*ell;
+              out[0] = (ell * elx - el * ellx )/hdenom;
+              out[1] = (ell * ely - el * elly )/hdenom;
+              dst.at<Vec2f>(i,j) = out;
+              if( (i == 1847) && (j==186) ) {
+                cout << "Hx,Hy,Sx,Sy " << i << "," << j << " ==> " << out[0] << "," << out[1] << endl;
+              }
+
+              break;
+            case S_QUASI_INVARIANT:
+              sdenom = (e*e + el*el + ell*ell) * sqrt( el*el+ell*ell );
+              out[0] = ( e * (el*elx +ell*ellx) - ex * (el*el + ell*ell))/ sdenom;
+              out[1] = ( e * (el*ely +ell*elly) - ey * (el*el + ell*ell))/ sdenom;
+              dst.at<Vec2f>(i,j) = out;
+              break;
+          }
+
+          if( (i == 1847) && (j==186) ) {
+            cout << "e   " << i << "," << j << " ==> " << e_p[0] << "," << e_p[1] << "," << e_p[2] <<  endl;
+            cout << "ex  " << i << "," << j << " ==> " << ex_p[0] << "," << ex_p[1] << "," << ex_p[2] << endl;
+            cout << "ey  " << i << "," << j << " ==> " << ey_p[0] << "," << ey_p[1] << "," << ey_p[2] << endl;
+            cout << "Hx,Hy,Sx,Sy " << i << "," << j << " ==> " << outt[0] << "," << outt[1] << "," << outt[2] << "," << outt[3] << endl;
+          }
+
         }
-
       }
     }
   }
 
 
-  static void generateImageTensor( const Mat &src, Mat &dst )
+  static void generateImageTensor( const Mat &src, Mat &dst, int blockSize = 3 )
   {
     Size size = src.size();
 
@@ -196,9 +259,13 @@ namespace cv {
     }
 
 
+    cout << "Using block filter of size " << blockSize << endl;
+    boxFilter(dst, dst, dst.depth(), Size(blockSize, blockSize),
+        Point(-1,-1), false ); //, borderType );
+
     // Gaussian smooth M
-    Size ksize( 5,5 );
-    GaussianBlur( dst, dst, ksize, 0 );
+ //   Size ksize( 5,5 );
+//GaussianBlur( dst, dst, ksize, 0 );
 
   }
 
@@ -214,7 +281,7 @@ namespace cv {
 
         _dst.at<float>(i,j) = xx*yy - xy*xy - k*(xx+yy)*(xx+yy);
 
-        if( (i == 561) && (j == 163) ) {
+        if( (i == 1847) && (j == 186) ) {
           cout << "k = " << k << endl;
           cout << "At " << i << "," << j << " xx = " << xx << " xy = " << xy << " yy = " << yy << endl;
           cout << "At " << i << "," << j << " I = " << _dst.at<float>(i,j) << endl;
@@ -411,7 +478,8 @@ break_out:
   void quasiInvariantFeaturesToTrack( QuasiInvariant which,
       const Mat &img,
       OutputArray _corners,
-      int maxCorners, double qualityLevel, double minDistance,
+      int maxCorners, double qualityLevel, 
+      double minDistance, int blockSize,
       const Mat &mask, 
       bool useHarrisDetector,
       double harrisK )
@@ -421,7 +489,17 @@ break_out:
     Mat m_mat( img.size(), CV_32FC3 );
 
     generateQuasiInvariants( img, qi, which );
-    generateImageTensor( qi, m_mat );
+
+    vector<Mat> channels;
+    split( qi, channels );
+    for(int i = 0; i < qi.channels(); i++ ) {
+      double minVal, maxVal;
+      Mat chan = channels[i];
+      minMaxLoc( chan, &minVal, &maxVal );
+      cout << "For channel " << i << " max is " << maxVal << " ; min is " << minVal << endl;
+    }
+
+    generateImageTensor( qi, m_mat, blockSize );
     
     // Stores the resulting Harris I or minimum Eigenvalues
     Mat eig;
@@ -635,6 +713,7 @@ extern "C" {
       const CvMat *_chu,
       CvPoint2D32f* _corners, int *_corner_count,
       double quality_level, double min_distance,
+      int block_size,
       const void* _maskImage, 
       int use_harris, double harris_k )
   {
@@ -648,7 +727,7 @@ extern "C" {
 
     CV_Assert( _corners && _corner_count );
     cv::quasiInvariantFeaturesToTrack( which, chu, corners, *_corner_count, quality_level,
-        min_distance, mask, use_harris != 0, harris_k );
+        min_distance, block_size, mask, use_harris != 0, harris_k );
 
     size_t i, ncorners = corners.size();
     for( i = 0; i < ncorners; i++ ) {

@@ -10,6 +10,8 @@ class TestChuColorInvariance < Test::Unit::TestCase
 
   def setup
     @img_one = TestSetup::test_image
+    @harris_params = CVFFI::GoodFeaturesParams.new( use_harris: false, quality_level: 0.1,
+                                          k: 0.04 )
   end
 
   def test_chu_color_invariants
@@ -34,33 +36,34 @@ class TestChuColorInvariance < Test::Unit::TestCase
     img = @img_one.clone
     assert_not_nil img
 
-    params = CVFFI::GoodFeaturesParams.new( use_harris: true, quality_level: 0.5,
-                                          k: 0.04 )
-    corners = chuQuasiInvariantFeatures( img, params )
+    puts "*** Computing Chu quasi invariants."
+    corners = chuQuasiInvariantFeatures( img, @harris_params )
     puts "Chu quasi invariant found #{corners.length} features"
 
-    draw_and_save_keypoints( img, corners, "chu_quasiinvariant_harris" )
+    TestSetup::draw_and_save_keypoints( img, corners, "chu_invariant_harris" )
   end
 
 
-  def test_chu_harris
+  def test_h_harris
     img = @img_one.clone
     assert_not_nil img
 
-    params = CVFFI::GoodFeaturesParams.new( use_harris: true, quality_level: 0.5,
-                                          k: 0.04 )
-    corners = chuQuasiInvariantFeatures( img, params )
-    puts "Chu quasi invariant found #{corners.length} features"
-
-    feature_img = img.clone
-    corners.each { |corner|
-      puts "Corner at #{corner.x} x #{corner.y}"
-      CVFFI::cvCircle( feature_img, CVFFI::CvPoint.new( :x => corner.x, :y => corner.y ), 20,
-                                            CVFFI::CvScalar.new( :w=>255, :x=>255, :y=>0, :z=>0 ), -1, 8, 0 )
-    }
-    TestSetup::save_image("chu_invariant_features", feature_img )
-
+    puts "*** Computing H quasi invariants."
+    corners = hQuasiInvariantFeatures( img, @harris_params )
+    puts "H quasi invariant found #{corners.length} features"
+    TestSetup::draw_and_save_keypoints( img, corners, "h_invariant_harris" )
   end
+
+  def test_grey_harris
+    img = @img_one.clone
+    assert_not_nil img
+
+    puts "*** Computing greyscale quasi invariants."
+    corners = greyscaleQuasiInvariantFeatures( img, @harris_params )
+    puts "Grey quasi invariant found #{corners.length} features"
+    TestSetup::draw_and_save_keypoints( img, corners, "grey_invariant_harris" )
+  end
+
 
 
 
