@@ -100,6 +100,9 @@ void cv::featuresWithResponseCommon( Mat &eig,
   Mat tmp;
   double maxVal = 0;
   minMaxLoc( eig, 0, &maxVal, 0, 0, mask );
+
+  std::cout << "Max val = " << maxVal << std::endl;
+
   threshold( eig, eig, maxVal*params.quality_level, 0, THRESH_TOZERO );
   dilate( eig, tmp, Mat());
 

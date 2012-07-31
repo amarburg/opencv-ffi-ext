@@ -304,7 +304,7 @@ namespace cv {
   }
 
 
-  void quasiInvariantFeaturesWithResponse( QuasiInvariant which,
+  void quasiInvariantFeatures( QuasiInvariant which,
       InputArray img,
       std::vector<HarrisKeypoint> &corners,
       InputArray _mask, const HarrisParams_t &params )
@@ -327,13 +327,13 @@ namespace cv {
     generateImageTensor( qi, m_mat, params.block_size );
 
     Mat eig, mask = _mask.getMat();
-  if( params.use_harris )
-    quasiInvariantHarris( m_mat, eig, params.harris_k ); //params.block_size, 3, params.harris_k );
-  else
-    quasiInvariantMinEigen( m_mat, eig ); //, params.block_size, 3 );
+    if( params.use_harris )
+      quasiInvariantHarris( m_mat, eig, params.harris_k ); //params.block_size, 3, params.harris_k );
+    else
+      quasiInvariantMinEigen( m_mat, eig ); //, params.block_size, 3 );
 
 
-  featuresWithResponseCommon( m_mat, corners, mask, params );
+    featuresWithResponseCommon( eig, corners, mask, params );
   }
 
 
@@ -551,7 +551,7 @@ extern "C" {
     if( _maskImage )
       mask = cv::cvarrToMat(_maskImage);
 
-    quasiInvariantFeaturesWithResponse( which, image, corners, mask, params );
+    quasiInvariantFeatures( which, image, corners, mask, params );
 
     CvSeqWriter writer;
     cvStartWriteSeq( 0, sizeof(CvSeq), sizeof(CvKeyPoint_t), pool, &writer );
