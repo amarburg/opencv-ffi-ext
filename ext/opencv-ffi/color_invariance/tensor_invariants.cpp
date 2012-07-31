@@ -1,6 +1,10 @@
 
+#include <opencv2/core/types_c.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+
+#include "../harris/harris_with_response.h"
+#include "../keypoint.h"
 
 #include <iostream>
 #include <stdio.h>
@@ -263,6 +267,7 @@ namespace cv {
 
   }
 
+
   static void quasiInvariantHarris( const Mat &m, Mat &_dst, double k )
   {
     _dst.create( m.size(), CV_32F );
@@ -281,6 +286,7 @@ namespace cv {
 
   static void quasiInvariantMinEigen( const Mat &m, Mat &_dst )
   {
+
     _dst.create( m.size(), CV_32F );
     Size size = m.size();
 
@@ -297,186 +303,17 @@ namespace cv {
 
   }
 
-  template<typename T> struct greaterThanPtr
-  {
-    bool operator()(const T* a, const T* b) const { return *a > *b; }
-  };
 
-  // Contains code common to the Harris-style functions after the computation
-  // of the response variable.
-  static void harrisCommon( Mat &eig,
-      OutputArray _corners,
-      int maxCorners, double qualityLevel, double minDistance,
-      const Mat &mask,
-      bool useHarrisDetector,
-      double harrisK )
-  {
-    Mat tmp;
-    double maxVal = 0, minVal = 0;
-    minMaxLoc( eig, &minVal, &maxVal, 0, 0, mask );
-    //cout << "Found maximum value " << maxVal << endl;
-    //cout << "Found minimum value " << minVal << endl;
-    cout << "Quality level " << qualityLevel<< endl;
-
-    threshold( eig, eig, maxVal*qualityLevel, 0, THRESH_TOZERO );
-    dilate( eig, tmp, Mat());
-
-    Size imgsize = eig.size();
-
-    vector<const float*> tmpCorners;
-
-    // collect list of pointers to features - put them into temporary image
-    for( int y = 1; y < imgsize.height - 1; y++ )
-    {
-      const float* eig_data = (const float*)eig.ptr(y);
-      const float* tmp_data = (const float*)tmp.ptr(y);
-      const uchar* mask_data = mask.data ? mask.ptr(y) : 0;
-
-      for( int x = 1; x < imgsize.width - 1; x++ )
-      {
-        float val = eig_data[x];
-        if( val != 0 && val == tmp_data[x] && (!mask_data || mask_data[x]) )
-          tmpCorners.push_back(eig_data + x);
-      }
-    }
-
-    sort( tmpCorners, greaterThanPtr<float>() );
-    vector<Point2f> corners;
-    size_t i, j, total = tmpCorners.size(), ncorners = 0;
-
-    if(minDistance >= 1)
-    {
-      // Partition the image into larger grids
-      int w = eig.cols;
-      int h = eig.rows;
-
-      const int cell_size = cvRound(minDistance);
-      const int grid_width = (w + cell_size - 1) / cell_size;
-      const int grid_height = (h + cell_size - 1) / cell_size;
-
-      std::vector<std::vector<Point2f> > grid(grid_width*grid_height);
-
-      minDistance *= minDistance;
-
-      for( i = 0; i < total; i++ )
-      {
-        int ofs = (int)((const uchar*)tmpCorners[i] - eig.data);
-        int y = (int)(ofs / eig.step);
-        int x = (int)((ofs - y*eig.step)/sizeof(float));
-
-        bool good = true;
-
-        int x_cell = x / cell_size;
-        int y_cell = y / cell_size;
-        int x1 = x_cell - 1;
-        int y1 = y_cell - 1;
-        int x2 = x_cell + 1;
-        int y2 = y_cell + 1;
-
-        // boundary check
-        x1 = std::max(0, x1);
-        y1 = std::max(0, y1);
-        x2 = std::min(grid_width-1, x2);
-        y2 = std::min(grid_height-1, y2);
-
-        for( int yy = y1; yy <= y2; yy++ )
-        {
-          for( int xx = x1; xx <= x2; xx++ )
-          {   
-            vector <Point2f> &m = grid[yy*grid_width + xx];
-
-            if( m.size() )
-            {
-              for(j = 0; j < m.size(); j++)
-              {
-                float dx = x - m[j].x;
-                float dy = y - m[j].y;
-
-                if( dx*dx + dy*dy < minDistance )
-                {
-                  good = false;
-                  goto break_out;
-                }
-              }
-            }                
-          }
-        }
-
-break_out:
-
-        if(good)
-        {
-          // printf("%d: %d %d -> %d %d, %d, %d -- %d %d %d %d, %d %d, c=%d\n",
-          //    i,x, y, x_cell, y_cell, (int)minDistance, cell_size,x1,y1,x2,y2, grid_width,grid_height,c);
-          grid[y_cell*grid_width + x_cell].push_back(Point2f((float)x, (float)y));
-
-          corners.push_back(Point2f((float)x, (float)y));
-          ++ncorners;
-
-          if( maxCorners > 0 && (int)ncorners == maxCorners )
-            break;
-        }
-      }
-    }
-    else
-    {
-      for( i = 0; i < total; i++ )
-      {
-        int ofs = (int)((const uchar*)tmpCorners[i] - eig.data);
-        int y = (int)(ofs / eig.step);
-        int x = (int)((ofs - y*eig.step)/sizeof(float));
-
-        corners.push_back(Point2f((float)x, (float)y));
-        ++ncorners;
-        if( maxCorners > 0 && (int)ncorners == maxCorners )
-          break;
-      }
-    }
-
-    Mat(corners).convertTo(_corners, _corners.fixedType() ? _corners.type() : CV_32F);
-
-    /*
-       for( i = 0; i < total; i++ )
-       {
-       int ofs = (int)((const uchar*)tmpCorners[i] - eig.data);
-       int y = (int)(ofs / eig.step);
-       int x = (int)((ofs - y*eig.step)/sizeof(float));
-
-       if( minDistance > 0 )
-       {
-       for( j = 0; j < ncorners; j++ )
-       {
-       float dx = x - corners[j].x;
-       float dy = y - corners[j].y;
-       if( dx*dx + dy*dy < minDistance )
-       break;
-       }
-       if( j < ncorners )
-       continue;
-       }
-
-       corners.push_back(Point2f((float)x, (float)y));
-       ++ncorners;
-       if( maxCorners > 0 && (int)ncorners == maxCorners )
-       break;
-       }
-       */
-  }
-
-  void quasiInvariantFeaturesToTrack( QuasiInvariant which,
-      const Mat &img,
-      OutputArray _corners,
-      int maxCorners, double qualityLevel, 
-      double minDistance, int blockSize,
-      const Mat &mask, 
-      bool useHarrisDetector,
-      double harrisK )
+  void quasiInvariantFeaturesWithResponse( QuasiInvariant which,
+      InputArray img,
+      std::vector<HarrisKeypoint> &corners,
+      InputArray _mask, const HarrisParams_t &params )
   {
     Size size = img.size();
     Mat qi;
     Mat m_mat( img.size(), CV_32FC3 );
 
-    generateQuasiInvariants( img, qi, which );
+    generateQuasiInvariants( img.getMat(), qi, which );
 
     //vector<Mat> channels;
     //split( qi, channels );
@@ -487,19 +324,16 @@ break_out:
     //  cout << "For channel " << i << " max is " << maxVal << " ; min is " << minVal << endl;
     //}
 
-    generateImageTensor( qi, m_mat, blockSize );
-    
-    // Stores the resulting Harris I or minimum Eigenvalues
-    Mat eig;
+    generateImageTensor( qi, m_mat, params.block_size );
 
-    if( useHarrisDetector )
-      quasiInvariantHarris( m_mat, eig, harrisK );
-    else
-      quasiInvariantMinEigen( m_mat, eig );
+    Mat eig, mask = _mask.getMat();
+  if( params.use_harris )
+    quasiInvariantHarris( m_mat, eig, params.harris_k ); //params.block_size, 3, params.harris_k );
+  else
+    quasiInvariantMinEigen( m_mat, eig ); //, params.block_size, 3 );
 
-    harrisCommon( eig, _corners,
-        maxCorners, qualityLevel, minDistance,
-        mask, useHarrisDetector, harrisK );
+
+  featuresWithResponseCommon( m_mat, corners, mask, params );
   }
 
 
@@ -697,31 +531,44 @@ extern "C" {
     }
   }
 
-  void cvQuasiInvariantFeaturesToTrack( QuasiInvariant which,
-      const CvMat *_chu,
-      CvPoint2D32f* _corners, int *_corner_count,
-      double quality_level, double min_distance,
-      int block_size,
+  void cvFoobar( QuasiInvariant which,
+      const void* _image, 
       const void* _maskImage, 
-      int use_harris, double harris_k )
+      CvMemStorage *pool, const HarrisParams_t params )
   {
-    Mat chu, mask;
-    cv::vector<cv::Point2f> corners;
+  }
 
-    convertCvMatToMat( _chu, chu );
+  CvSeq *cvQuasiInvariantFeatures( QuasiInvariant which,
+      const CvMat* _image, 
+      const void* _maskImage, 
+      CvMemStorage *pool, const HarrisParams_t params )
+  {
+    cv::Mat image = cv::cvarrToMat(_image), mask;
+    convertCvMatToMat( _image, image );
+
+    std::vector<HarrisKeypoint> corners;
 
     if( _maskImage )
       mask = cv::cvarrToMat(_maskImage);
 
-    CV_Assert( _corners && _corner_count );
-    cv::quasiInvariantFeaturesToTrack( which, chu, corners, *_corner_count, quality_level,
-        min_distance, block_size, mask, use_harris != 0, harris_k );
+    quasiInvariantFeaturesWithResponse( which, image, corners, mask, params );
 
-    size_t i, ncorners = corners.size();
-    for( i = 0; i < ncorners; i++ ) {
-      _corners[i] = corners[i];
+    CvSeqWriter writer;
+    cvStartWriteSeq( 0, sizeof(CvSeq), sizeof(CvKeyPoint_t), pool, &writer );
+    size_t ncorners = corners.size();
+    for( size_t i = 0; i < ncorners; i++ ) {
+      CvKeyPoint_t kp;
+      kp.x = corners[i].x;
+      kp.y = corners[i].y;
+      kp.response = corners[i].response;
+
+      kp.size = kp.angle = 0.0;
+      kp.octave = 0;
+
+      CV_WRITE_SEQ_ELEM( kp, writer );
     }
-    *_corner_count = (int)ncorners;
+
+    return cvEndWriteSeq( &writer );
   }
 
 }

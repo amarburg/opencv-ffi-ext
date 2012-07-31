@@ -73,7 +73,7 @@ HarrisKeypoint::HarrisKeypoint( float _x, float _y, float _response )
 
 using namespace cv;
 
-void goodFeaturesWithResponse( InputArray _image, 
+void cv::goodFeaturesWithResponse( InputArray _image, 
     std::vector<HarrisKeypoint> &corners,
     InputArray _mask, const HarrisParams_t &params )
 {
@@ -83,18 +83,27 @@ void goodFeaturesWithResponse( InputArray _image,
              params.min_distance >= 0 );
   CV_Assert( mask.empty() || (mask.type() == CV_8UC1 && mask.size() == image.size()) );
 
-  Mat eig, tmp;
+  Mat eig;
   if( params.use_harris )
     cornerHarris( image, eig, params.block_size, 3, params.harris_k );
   else
     cornerMinEigenVal( image, eig, params.block_size, 3 );
 
+  featuresWithResponseCommon( eig, corners, mask, params );
+}
+
+
+void cv::featuresWithResponseCommon( Mat &eig,
+    std::vector<HarrisKeypoint> &corners,
+    Mat &mask, const HarrisParams_t &params )
+{
+  Mat tmp;
   double maxVal = 0;
   minMaxLoc( eig, 0, &maxVal, 0, 0, mask );
   threshold( eig, eig, maxVal*params.quality_level, 0, THRESH_TOZERO );
   dilate( eig, tmp, Mat());
 
-  Size imgsize = image.size();
+  Size imgsize = eig.size();
 
   std::vector<const float*> tmpCorners;
 
@@ -119,8 +128,8 @@ void goodFeaturesWithResponse( InputArray _image,
   if(params.min_distance >= 1)
   {
     // Partition the image into larger grids
-    int w = image.cols;
-    int h = image.rows;
+    int w = eig.cols;
+    int h = eig.rows;
 
     const int cell_size = cvRound(params.min_distance);
     const int grid_width = (w + cell_size - 1) / cell_size;

@@ -2,6 +2,8 @@
 #ifndef _NEW_HARRIS_H_
 #define _NEW_HARRIS_H_
 
+#include <vector>
+
 typedef struct HarrisParams_t {
   double quality_level;
   double min_distance;
@@ -22,6 +24,19 @@ class HarrisKeypoint {
   HarrisKeypoint();
    HarrisKeypoint( float _x, float _y, float _response );
 };
+
+namespace cv {
+
+  void goodFeaturesWithResponse( InputArray _image, 
+      std::vector<HarrisKeypoint> &corners,
+      InputArray _mask, const HarrisParams_t &params );
+
+  void featuresWithResponseCommon( Mat &eig,
+      std::vector<HarrisKeypoint> &corners,
+      Mat &mask, const HarrisParams_t &params );
+
+
+}
 
 #endif
 

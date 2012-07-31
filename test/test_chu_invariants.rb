@@ -10,8 +10,8 @@ class TestChuColorInvariance < Test::Unit::TestCase
   include CVFFI::ColorInvariance
 
   def setup
-    @img_one = TestSetup::second_image
-    @harris_params = CVFFI::GoodFeaturesParams.new( use_harris: true, quality_level: 0.5,
+    @img_one = TestSetup::test_image
+    @harris_params = CVFFI::GoodFeaturesParams.new( use_harris: false, quality_level: 0.5,
                                           k: 0.04 )
   end
 
