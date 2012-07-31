@@ -21,58 +21,48 @@ module CVFFI
 
     attach_function :cvNormalizedColorImage, [ :pointer, :pointer ], :void
     attach_function :cvGenerateColorTensor, [ :pointer, :pointer, :pointer ], :void
+
+
+
+    enum :quasiInvariants, [ :H_QUASI_INVARIANT, 0,
+                             :S_QUASI_INVARIANT, 
+                             :HS_QUASI_INVARIANTS ]
+
+    attach_function :cvGenerateQuasiInvariant, [ :int, :pointer, :pointer, :pointer ], :void
     attach_function :cvGenerateSQuasiInvariant, [ :pointer, :pointer, :pointer ], :void
-
+    attach_function :cvGenerateHQuasiInvariant, [ :pointer, :pointer, :pointer ], :void
     attach_function :cvGenerateChuQuasiInvariants, [ :pointer, :pointer ], :void
-    attach_function :cvChuQuasiInvariantFeaturesToTrack, [ :pointer, :pointer,
-      :pointer, :double, :double,
-      :pointer, :int, :double ], :void
 
-  def chuQuasiInvariantFeatures( chu, params = CVFFI::GoodFeaturesParams.new )
-
-    max_corners = FFI::MemoryPointer.new :int
-    max_corners.write_int params.max_corners
-    corners = FFI::MemoryPointer.new( CVFFI::CvPoint2D32f, params.max_corners )
-
-    cvChuQuasiInvariantFeaturesToTrack( chu.to_CvMat, 
-                                    corners, max_corners, 
-                                 params.quality_level, params.min_distance, params.mask,
-                                 params.use_harris ? 1 : 0, params.k )
-
-    max_corners = max_corners.read_int 
-    points = Array.new( max_corners ) {|i|
-      CVFFI::CvPoint2D32f.new( corners + CVFFI::CvPoint2D32f.size * i )
-    }
-  end
-
-
-  #cvQuasiInvariantFeaturesToTrack( const Mat *_quasiX, const Mat *_quasiY, 
-  #    CvPoint2D32f* _corners, int *_corner_count,
-  #    double quality_level, double min_distance,
-  #    const void* _maskImage, int block_size,
-  #    int use_harris, double harris_k )
-  attach_function :cvQuasiInvariantFeaturesToTrack, [ :pointer, :pointer, :pointer,
+    attach_function :cvQuasiInvariantFeaturesToTrack, [ :int, :pointer, :pointer, 
                                                    :pointer, :double, :double,
                                                    :pointer, :int, :double ], :void
 
-  def self.quasiInvariantFeaturesToTrack( quasiX, quasiY, params = CVFFI::GoodFeaturesParams.new )
+
+  def quasiInvariantFeatures( which, m, params = CVFFI::GoodFeaturesParams.new )
 
     max_corners = FFI::MemoryPointer.new :int
     max_corners.write_int params.max_corners
     corners = FFI::MemoryPointer.new( CVFFI::CvPoint2D32f, params.max_corners )
 
-    cvQuasiInvariantFeaturesToTrack( quasiX.to_CvMat, quasiY.to_CvMat, 
+    cvQuasiInvariantFeaturesToTrack( which, m.to_CvMat, 
                                     corners, max_corners, 
                                  params.quality_level, params.min_distance, params.mask,
                                  params.use_harris ? 1 : 0, params.k )
 
-    max_corners = max_corners.read_int 
-    points = Array.new( max_corners ) {|i|
+    num_corners = max_corners.read_int 
+    points = Array.new( num_corners ) {|i|
       CVFFI::CvPoint2D32f.new( corners + CVFFI::CvPoint2D32f.size * i )
     }
   end
 
- 
+  def chuQuasiInvariantFeatures( m, params = CVFFI::GoodFeaturesParams.new )
+    quasiInvariantFeatures( :HS_QUASI_INVARIANTS, m, params )
+  end
+
+  def hQuasiInvariantFeatures( m, params = CVFFI::GoodFeaturesParams.new )
+    quasiInvariantFeatures( :H_QUASI_INVARIANT, m, params )
+  end
+
   end
 end
 

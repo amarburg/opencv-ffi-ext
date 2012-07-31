@@ -72,6 +72,18 @@ module TestSetup
 
   EPSILON = 1e-3
 
+
+  def self.draw_and_save_keypoints( img, corners, out_filename )
+    feature_img = img.clone
+    corners.each { |corner|
+      puts "Corner at #{corner.x} x #{corner.y}"
+      CVFFI::cvCircle( feature_img, CVFFI::CvPoint.new( :x => corner.x, :y => corner.y ), 20,
+                                            CVFFI::CvScalar.new( :w=>255, :x=>255, :y=>0, :z=>0 ), -1, 8, 0 )
+    }
+    TestSetup::save_image(out_filename, feature_img )
+  end
+
+
 end
 
 module EachTwo

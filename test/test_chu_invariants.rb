@@ -39,6 +39,19 @@ class TestChuColorInvariance < Test::Unit::TestCase
     corners = chuQuasiInvariantFeatures( img, params )
     puts "Chu quasi invariant found #{corners.length} features"
 
+    draw_and_save_keypoints( img, corners, "chu_quasiinvariant_harris" )
+  end
+
+
+  def test_chu_harris
+    img = @img_one.clone
+    assert_not_nil img
+
+    params = CVFFI::GoodFeaturesParams.new( use_harris: true, quality_level: 0.5,
+                                          k: 0.04 )
+    corners = chuQuasiInvariantFeatures( img, params )
+    puts "Chu quasi invariant found #{corners.length} features"
+
     feature_img = img.clone
     corners.each { |corner|
       puts "Corner at #{corner.x} x #{corner.y}"
