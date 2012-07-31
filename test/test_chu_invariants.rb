@@ -3,14 +3,15 @@ require 'test/setup'
 
 require 'opencv-ffi-wrappers'
 require 'opencv-ffi-ext/color_invariance'
+require 'opencv-ffi-ext/features2d/harris_with_response'
 
 class TestChuColorInvariance < Test::Unit::TestCase
 
   include CVFFI::ColorInvariance
 
   def setup
-    @img_one = TestSetup::test_image
-    @harris_params = CVFFI::GoodFeaturesParams.new( use_harris: false, quality_level: 0.1,
+    @img_one = TestSetup::second_image
+    @harris_params = CVFFI::GoodFeaturesParams.new( use_harris: true, quality_level: 0.5,
                                           k: 0.04 )
   end
 
@@ -62,6 +63,10 @@ class TestChuColorInvariance < Test::Unit::TestCase
     corners = greyscaleQuasiInvariantFeatures( img, @harris_params )
     puts "Grey quasi invariant found #{corners.length} features"
     TestSetup::draw_and_save_keypoints( img, corners, "grey_invariant_harris" )
+
+    puts "---- Computing harris with response."
+    kps = CVFFI::Features2D::HarrisWithResponse::detect( img, @harris_params )
+    puts "Harris found #{kps.length} features"
   end
 
 

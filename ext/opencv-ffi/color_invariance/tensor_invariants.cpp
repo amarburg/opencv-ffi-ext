@@ -65,6 +65,11 @@ namespace cv {
 
     // This is fixed in the OpenCV implementation of GoodFeaturesToTrack
     double scale = (double)(1 << ((aperture_size > 0 ? aperture_size : 3) - 1)) * block_size;
+    if( aperture_size < 0 )
+      scale *= 2.;
+    if( src.depth() == CV_8U )
+      scale *= 255.;
+    scale = 1/scale;
 
     CV_Assert( src.channels() == 3 );
     CV_Assert( src.depth() == CV_32F );
@@ -192,10 +197,6 @@ namespace cv {
               out[0] = (ell * elx - el * ellx )/hdenom;
               out[1] = (ell * ely - el * elly )/hdenom;
               dst.at<Vec2f>(i,j) = out;
-              if( (i == 1847) && (j==186) ) {
-                cout << "Hx,Hy,Sx,Sy " << i << "," << j << " ==> " << out[0] << "," << out[1] << endl;
-              }
-
               break;
             case S_QUASI_INVARIANT:
               sdenom = (e*e + el*el + ell*ell) * sqrt( el*el+ell*ell );
@@ -203,13 +204,6 @@ namespace cv {
               out[1] = ( e * (el*ely +ell*elly) - ey * (el*el + ell*ell))/ sdenom;
               dst.at<Vec2f>(i,j) = out;
               break;
-          }
-
-          if( (i == 1847) && (j==186) ) {
-            cout << "e   " << i << "," << j << " ==> " << e_p[0] << "," << e_p[1] << "," << e_p[2] <<  endl;
-            cout << "ex  " << i << "," << j << " ==> " << ex_p[0] << "," << ex_p[1] << "," << ex_p[2] << endl;
-            cout << "ey  " << i << "," << j << " ==> " << ey_p[0] << "," << ey_p[1] << "," << ey_p[2] << endl;
-            cout << "Hx,Hy,Sx,Sy " << i << "," << j << " ==> " << outt[0] << "," << outt[1] << "," << outt[2] << "," << outt[3] << endl;
           }
 
         }
@@ -280,12 +274,6 @@ namespace cv {
         float xx = _m[0], xy = _m[1], yy = _m[2];
 
         _dst.at<float>(i,j) = xx*yy - xy*xy - k*(xx+yy)*(xx+yy);
-
-        if( (i == 1847) && (j == 186) ) {
-          cout << "k = " << k << endl;
-          cout << "At " << i << "," << j << " xx = " << xx << " xy = " << xy << " yy = " << yy << endl;
-          cout << "At " << i << "," << j << " I = " << _dst.at<float>(i,j) << endl;
-        }
       }
     }
 
@@ -326,8 +314,8 @@ namespace cv {
     Mat tmp;
     double maxVal = 0, minVal = 0;
     minMaxLoc( eig, &minVal, &maxVal, 0, 0, mask );
-    cout << "Found maximum value " << maxVal << endl;
-    cout << "Found minimum value " << minVal << endl;
+    //cout << "Found maximum value " << maxVal << endl;
+    //cout << "Found minimum value " << minVal << endl;
     cout << "Quality level " << qualityLevel<< endl;
 
     threshold( eig, eig, maxVal*qualityLevel, 0, THRESH_TOZERO );
@@ -490,14 +478,14 @@ break_out:
 
     generateQuasiInvariants( img, qi, which );
 
-    vector<Mat> channels;
-    split( qi, channels );
-    for(int i = 0; i < qi.channels(); i++ ) {
-      double minVal, maxVal;
-      Mat chan = channels[i];
-      minMaxLoc( chan, &minVal, &maxVal );
-      cout << "For channel " << i << " max is " << maxVal << " ; min is " << minVal << endl;
-    }
+    //vector<Mat> channels;
+    //split( qi, channels );
+    //for(int i = 0; i < qi.channels(); i++ ) {
+    //  double minVal, maxVal;
+    //  Mat chan = channels[i];
+    //  minMaxLoc( chan, &minVal, &maxVal );
+    //  cout << "For channel " << i << " max is " << maxVal << " ; min is " << minVal << endl;
+    //}
 
     generateImageTensor( qi, m_mat, blockSize );
     
