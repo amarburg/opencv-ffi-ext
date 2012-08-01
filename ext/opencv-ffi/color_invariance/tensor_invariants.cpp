@@ -48,6 +48,9 @@ namespace cv {
     }
   }
 
+
+  
+
   enum QuasiInvariant { H_QUASI_INVARIANT = 0, 
     S_QUASI_INVARIANT, 
     HS_QUASI_INVARIANTS, GREYSCALE };
@@ -214,6 +217,37 @@ namespace cv {
       }
     }
   }
+
+void spatialQuasiInvariantImage( const Mat &src, Mat &dst, QuasiInvariant which, int aperture_size = 3, int block_size = 3 )
+  {
+    CV_Assert( (which == H_QUASI_INVARIANT) || (which == S_QUASI_INVARIANT) );
+
+    Size sz = src.size();
+    Mat d( sz, CV_32FC1 );
+
+    Mat qi;
+    generateQuasiInvariants( src, qi, which, aperture_size, block_size );
+
+    for( int i = 0; i < sz.height; i++ ) {
+      for( int j = 0; j < sz.width; j++ ) {
+        Vec2f px = qi.at<Vec2f>( i,j );
+
+        // TODO:  Doesn't correct for other channel orderings
+        float x = px[0], y = px[1];
+
+        d.at<float>(i,j) = sqrt( x*x + y*y );
+      }
+    }
+
+    // Rescale
+    double minVal, maxVal;
+    minMaxLoc( dst, &minVal, &maxVal );
+
+    double scale = 1/(maxVal - minVal );
+    
+    dst = Mat::zeros( sz, CV_32F);  ///d; // * scale - minVal;
+  }
+
 
 
   static void generateImageTensor( const Mat &src, Mat &dst, int blockSize = 3 )
@@ -462,6 +496,14 @@ extern "C" {
     Mat src, dst;
     convertCvMatToMat( srcarr, src ); 
     cv::normalizedColorImage( src, dst );
+    convertMatToCvMat( dst, dstarr );
+  }
+
+void cvSpatialQuasiInvariantImage( QuasiInvariant which, CvMat *srcarr, CvMat *dstarr )
+  {
+    Mat src, dst;
+    convertCvMatToMat( srcarr, src ); 
+    cv::spatialQuasiInvariantImage( src, dst, which );
     convertMatToCvMat( dst, dstarr );
   }
 

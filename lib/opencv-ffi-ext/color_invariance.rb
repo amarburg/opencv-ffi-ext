@@ -32,6 +32,7 @@ module CVFFI
       :HS_QUASI_INVARIANTS, 
       :GREYSCALE ]
 
+attach_function :cvSpatialQuasiInvariantImage, [ :int, :pointer, :pointer ], :void
     attach_function :cvGenerateQuasiInvariant, [ :int, :pointer, :pointer, :pointer ], :void
     attach_function :cvGenerateSQuasiInvariant, [ :pointer, :pointer, :pointer ], :void
     attach_function :cvGenerateHQuasiInvariant, [ :pointer, :pointer, :pointer ], :void
