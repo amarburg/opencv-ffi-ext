@@ -10,7 +10,7 @@ class TestChuColorInvariance < Test::Unit::TestCase
   include CVFFI::ColorInvariance
 
   def setup
-    @img_one = TestSetup::test_image
+    @img_one = TestSetup::grafitti_image
     @harris_params = CVFFI::GoodFeaturesParams.new( use_harris: true, quality_level: 0.1,
                                           k: 0.04 )
   end
@@ -33,12 +33,6 @@ class TestChuColorInvariance < Test::Unit::TestCase
     TestSetup::save_image("chu_invariants_sy", sy )
   end
 
-  def test_spatial_quasi_invariant_image
-    img = CVFFI::cvCreateMat( 1,1, :CV_32F )
-    cvSpatialQuasiInvariantImage( :H_QUASI_INVARIANT, @img_one, img )
-    TestSetup::save_image("h_invariant", img )
-  end
-
   def test_chu_harris
     img = @img_one.clone
     assert_not_nil img
@@ -49,6 +43,17 @@ class TestChuColorInvariance < Test::Unit::TestCase
 
     TestSetup::draw_and_save_keypoints( img, corners, "chu_invariant_harris" )
   end
+
+  def test_rgb_gradient
+    img = @img_one.clone
+    assert_not_nil img
+
+    puts "*** Computing RGB gradient quasi invariants."
+    corners = rgbGradientFeatures( img, @harris_params )
+    puts "RGB gradient found #{corners.length} features"
+    TestSetup::draw_and_save_keypoints( img, corners, "rgb_gradient_harris" )
+  end
+
 
 
   def test_h_harris
@@ -73,6 +78,7 @@ class TestChuColorInvariance < Test::Unit::TestCase
     puts "---- Computing harris with response."
     kps = CVFFI::Features2D::HarrisWithResponse::detect( img, @harris_params )
     puts "Harris found #{kps.length} features"
+    TestSetup::draw_and_save_keypoints( img, kps, "normal_harris" )
   end
 
 

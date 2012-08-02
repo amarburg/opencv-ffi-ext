@@ -29,7 +29,7 @@ module CVFFI
 
       def self.from_a( a )
         # TODO:  Should work...
-        #raise "Wrong number of elements (#{a.length} != #{members.length})" unless a.length == members.length
+        raise "Wrong number of elements (#{a.length} != 6)" unless a.length == 6
         CvKeyPoint.new( a )
       end
     end

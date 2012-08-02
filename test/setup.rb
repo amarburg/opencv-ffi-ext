@@ -15,7 +15,8 @@ IMAGES = { test: "IMG_7089.JPG",
            small_test: "IMG_7089_small.jpg",
            tiny_test: "IMG_7089_tiny.jpg",
            second: "IMG_7088.JPG",
-           dull: "dull_image.jpg" }
+           dull: "dull_image.jpg",
+           grafitti: "img1.ppm" }
 
 def recursive_test name
   dirname = [ 'test', name] .join('/')
@@ -46,6 +47,7 @@ module TestSetup
   image_accessor :small_test
   image_accessor :tiny_test
   image_accessor :second
+  image_accessor :grafitti
 
   def self.test_mat
     CVFFI::cvLoadImageM( IMAGES[:test], CVFFI::CV_LOAD_IMAGE_COLOR )
@@ -76,7 +78,7 @@ module TestSetup
   def self.draw_and_save_keypoints( img, corners, out_filename )
     feature_img = img.clone
     corners.each { |corner|
-      CVFFI::cvCircle( feature_img, CVFFI::CvPoint.new( :x => corner.x, :y => corner.y ), 20,
+      CVFFI::cvCircle( feature_img, CVFFI::CvPoint.new( :x => corner.x, :y => corner.y ), 10,
                                             CVFFI::CvScalar.new( :w=>255, :x=>255, :y=>0, :z=>0 ), -1, 8, 0 )
     }
     TestSetup::save_image(out_filename, feature_img )

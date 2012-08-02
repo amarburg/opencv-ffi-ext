@@ -30,6 +30,7 @@ module CVFFI
     enum :quasiInvariants, [ :H_QUASI_INVARIANT, 0,
       :S_QUASI_INVARIANT, 
       :HS_QUASI_INVARIANTS, 
+      :RGB_GRADIENT,
       :GREYSCALE ]
 
 attach_function :cvSpatialQuasiInvariantImage, [ :int, :pointer, :pointer ], :void
@@ -82,6 +83,10 @@ attach_function :cvSpatialQuasiInvariantImage, [ :int, :pointer, :pointer ], :vo
 
     def hQuasiInvariantFeatures( m, params = CVFFI::GoodFeaturesParams.new )
       quasiInvariantFeatures( :H_QUASI_INVARIANT, m, params )
+    end
+
+    def rgbGradientFeatures( m, params = CVFFI::GoodFeaturesParams.new )
+      quasiInvariantFeatures( :RGB_GRADIENT, m, params )
     end
 
     def greyscaleQuasiInvariantFeatures( m, params = CVFFI::GoodFeaturesParams.new )

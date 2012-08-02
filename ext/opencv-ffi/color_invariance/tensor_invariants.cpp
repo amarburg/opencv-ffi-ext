@@ -52,8 +52,10 @@ namespace cv {
   
 
   enum QuasiInvariant { H_QUASI_INVARIANT = 0, 
-    S_QUASI_INVARIANT, 
-    HS_QUASI_INVARIANTS, GREYSCALE };
+                        S_QUASI_INVARIANT, 
+                        HS_QUASI_INVARIANTS, 
+                        RGB_GRADIENT,
+                        GREYSCALE };
 
   // Generates the Hx, Hy, Sx, and Sy color invariants from Geusebroek et al
   // "Color Invariance"
@@ -78,12 +80,15 @@ namespace cv {
       scale *= 255.;
     scale = 1/scale;
 
+    // Function only works on 3-channel BGR 32F images
     CV_Assert( src.channels() == 3 );
     CV_Assert( src.depth() == CV_32F );
 
     if( which == HS_QUASI_INVARIANTS ) {
       dst.create( src.size(), CV_32FC4 );
-    } else {
+    } else if ( which == RGB_GRADIENT ) {
+      dst.create( src.size(), CV_32FC3 );
+    }else {
       dst.create( src.size(), CV_32FC2 );
     }
 
@@ -119,9 +124,6 @@ namespace cv {
         Scharr( g_mat, dy_mat, CV_32F, 0, 1, scale, 0 ); //, borderType );
       }
 
-      //Sobel( e_mat, ex_mat, -1, 1, 0, CV_SCHARR );
-      //Sobel( e_mat, ey_mat, -1, 0, 1, CV_SCHARR );
-
       for( int i = 0; i < sz.height; i++ ) {
         for( int j = 0; j < sz.width; j++ ) {
           Vec2f out;
@@ -131,6 +133,49 @@ namespace cv {
        }
       }
 
+    } else if ( which == RGB_GRADIENT ) {
+ 
+      Mat dx_mat( src.size(), CV_32FC3 );
+      Mat dy_mat( src.size(), CV_32FC3 );
+
+      vector<Mat> chans, dxs, dys;
+
+      split( src, chans );
+
+      for( unsigned int i = 0; i < 3; i++ ) {
+        Mat dx_foo( src.size(), CV_32FC1 );
+        Mat dy_bar( src.size(), CV_32FC1 );
+
+        if( aperture_size > 0 )
+        {
+          Sobel( chans[i], dx_foo, CV_32F, 1, 0, aperture_size, scale, 0 ); //, borderType );
+          Sobel( chans[i], dy_bar, CV_32F, 0, 1, aperture_size, scale, 0 ); //, borderType );
+        }
+        else
+        {
+          Scharr( chans[i], dx_foo, CV_32F, 1, 0, scale, 0 ); //, borderType );
+          Scharr( chans[i], dy_bar, CV_32F, 0, 1, scale, 0 ); //, borderType );
+        }    
+        dxs.push_back( dx_foo );
+        dys.push_back( dy_bar );
+      }
+
+      merge( dxs, dx_mat );
+      merge( dys, dy_mat );
+
+       for( int i = 0; i < sz.height; i++ ) {
+        for( int j = 0; j < sz.width; j++ ) {
+          Vec3f out; //  f_x^T f_x, f_x^T f_y, f_y^T f^y
+          Vec3f px( dx_mat.at<float>(i,j) );
+          Vec3f py( dy_mat.at<float>(i,j) );
+
+          out[0] = px[0]*px[0] + px[1]*px[1] + px[2]*px[2];
+          out[1] = px[0]*py[0] + px[1]*py[1] + px[2]*py[2];
+          out[2] = py[0]*py[0] + py[1]*py[1] + py[2]*py[2];
+          dst.at<Vec3f>(i,j) = out;
+       }
+      }
+     
     } else {
 
       Mat e_mat( src.size(), CV_32FC3 );
@@ -218,7 +263,7 @@ namespace cv {
     }
   }
 
-void spatialQuasiInvariantImage( const Mat &src, Mat &dst, QuasiInvariant which, int aperture_size = 3, int block_size = 3 )
+void spatialQuasiInvariantImage( const Mat &src, Mat &dst, QuasiInvariant which, int aperture_size = 3, int block_size = 3, bool do_normalize = true )
   {
     CV_Assert( (which == H_QUASI_INVARIANT) || (which == S_QUASI_INVARIANT) );
 
@@ -235,17 +280,28 @@ void spatialQuasiInvariantImage( const Mat &src, Mat &dst, QuasiInvariant which,
         // TODO:  Doesn't correct for other channel orderings
         float x = px[0], y = px[1];
 
-        d.at<float>(i,j) = sqrt( x*x + y*y );
+        d.at<float>(i,j) =  sqrt( x*x + y*y );
       }
     }
 
+    if( do_normalize == true ) {
     // Rescale
-    double minVal, maxVal;
-    minMaxLoc( dst, &minVal, &maxVal );
+      double minVal, maxVal;
+      minMaxLoc( d, &minVal, &maxVal );
+      cout << "d minimum value = " << minVal << endl;
+      cout << "d maximum value = " << maxVal << endl;
 
-    double scale = 1/(maxVal - minVal );
-    
-    dst = Mat::zeros( sz, CV_32F);  ///d; // * scale - minVal;
+      double scale = 1/(maxVal - minVal );
+
+      dst = (d-minVal)*scale;
+
+      minMaxLoc( dst, &minVal, &maxVal );
+      cout << "Dst minimum value = " << minVal << endl;
+      cout << "Dst maximum value = " << maxVal << endl;
+
+    } else {
+      dst = d;
+    }
   }
 
 
@@ -254,7 +310,7 @@ void spatialQuasiInvariantImage( const Mat &src, Mat &dst, QuasiInvariant which,
   {
     Size size = src.size();
 
-    // Create's M, which is equivalent to Harris' image tensor
+    // Creates M, which is equivalent to Harris' image tensor
     dst.create( size, CV_32FC3 );
 
     if( src.channels() == 4 ) {
@@ -273,6 +329,9 @@ void spatialQuasiInvariantImage( const Mat &src, Mat &dst, QuasiInvariant which,
           dst.at<Vec3f>(i,j) = m;
         }
       }
+    } else if(src.channels() == 3 ) {
+      // Pass through
+      dst = src;
     } else if(src.channels() == 2) {
       for( int i = 0; i < size.height; i++ ) {
         for( int j = 0; j < size.width; j++ ) {
@@ -451,8 +510,8 @@ void spatialQuasiInvariantImage( const Mat &src, Mat &dst, QuasiInvariant which,
 
 using namespace cv;
 
-
 extern "C" {
+  // The C wrappers
 
   static void convertCvMatToMat( const CvMat *srcarr, Mat &srcmat )
   {
@@ -474,9 +533,14 @@ extern "C" {
 
   static void convertMatToCvMat( Mat &dstmat, CvMat *dstarr )
   {
-    Mat dst = cvarrToMat( dstarr );
+    Mat dst0 = cvarrToMat( dstarr ), dst = dst0;
+
+//    printf("Before, dst0.data = %p\n", dst0.data );
+//    printf("Before, dst.data  = %p\n", dst.data );
 
     // Cast back to the type of dstarr
+    //dst.create( dstmat.size(), dst.type() );
+    
     switch( dst.depth() ) {
       case CV_8U:
         dstmat.convertTo( dst, CV_8U, 256.0, 0 );
@@ -489,7 +553,19 @@ extern "C" {
       default:
         cout << "cvGenerateChuColorInvariant cannot deal with type " << dstmat.depth() << endl;
     }
+
+//    printf("After, dst0.data = %p\n", dst0.data );
+//    printf("After, dst.data  = %p\n", dst.data );
+
+    // This assertion will fire if it's necessary to reallocate the 
+    // dstarr->data array.  Make sure the incoming CvMat is the correct type.
+    CV_Assert( dst.data == dst0.data );
+
+    //double minVal, maxVal;
+    //cvMinMaxLoc( dstarr, &minVal, &maxVal );
+    //printf("dstarr minVal = %lf, maxVal = %lf\n", minVal, maxVal );
   }
+
 
   void cvNormalizedColorImage( CvMat *srcarr, CvMat *dstarr )
   {
@@ -499,7 +575,7 @@ extern "C" {
     convertMatToCvMat( dst, dstarr );
   }
 
-void cvSpatialQuasiInvariantImage( QuasiInvariant which, CvMat *srcarr, CvMat *dstarr )
+  void cvSpatialQuasiInvariantImage( QuasiInvariant which, CvMat *srcarr, CvMat *dstarr )
   {
     Mat src, dst;
     convertCvMatToMat( srcarr, src ); 
