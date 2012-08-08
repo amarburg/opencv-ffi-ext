@@ -15,6 +15,7 @@ Mkrf::Generator.new('libcvffi', sources, { :compiler=>"g++"}) { |g|
   g.include_library 'stdc++'
   raise "Can't find 'opencv_core'" unless g.include_library 'opencv_core', 'main', "#{ENV['HOME']}/usr/lib"
   raise "Can't find 'opencv_features2d'" unless g.include_library 'opencv_features2d', 'main', "#{ENV['HOME']}/usr/lib"
+  raise "Can't find 'opencv_calib3d'" unless g.include_library 'opencv_calib3d', 'main', "#{ENV['HOME']}/usr/lib"
   
   #g.include_header  'eigen3/Eigen/Core', "#{ENV['HOME']}/usr/include"
   g.cflags += "-I#{ENV['HOME']}/usr/include "

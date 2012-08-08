@@ -607,242 +607,242 @@ CV_IMPL int cvEstimateFundamental( const CvMat* points1, const CvMat* points2,
 //}
 //
 //
-CV_IMPL void cvConvertPointsHomogeneous( const CvMat* src, CvMat* dst )
-{
-    Ptr<CvMat> temp, denom;
-
-    int i, s_count, s_dims, d_count, d_dims;
-    CvMat _src, _dst, _ones;
-    CvMat* ones = 0;
-
-    if( !CV_IS_MAT(src) )
-        CV_Error( !src ? CV_StsNullPtr : CV_StsBadArg,
-        "The input parameter is not a valid matrix" );
-
-    if( !CV_IS_MAT(dst) )
-        CV_Error( !dst ? CV_StsNullPtr : CV_StsBadArg,
-        "The output parameter is not a valid matrix" );
-
-    if( src == dst || src->data.ptr == dst->data.ptr )
-    {
-        if( src != dst && (!CV_ARE_TYPES_EQ(src, dst) || !CV_ARE_SIZES_EQ(src,dst)) )
-            CV_Error( CV_StsBadArg, "Invalid inplace operation" );
-        return;
-    }
-
-    if( src->rows > src->cols )
-    {
-        if( !((src->cols > 1) ^ (CV_MAT_CN(src->type) > 1)) )
-            CV_Error( CV_StsBadSize, "Either the number of channels or columns or rows must be =1" );
-
-        s_dims = CV_MAT_CN(src->type)*src->cols;
-        s_count = src->rows;
-    }
-    else
-    {
-        if( !((src->rows > 1) ^ (CV_MAT_CN(src->type) > 1)) )
-            CV_Error( CV_StsBadSize, "Either the number of channels or columns or rows must be =1" );
-
-        s_dims = CV_MAT_CN(src->type)*src->rows;
-        s_count = src->cols;
-    }
-
-    if( src->rows == 1 || src->cols == 1 )
-        src = cvReshape( src, &_src, 1, s_count );
-
-    if( dst->rows > dst->cols )
-    {
-        if( !((dst->cols > 1) ^ (CV_MAT_CN(dst->type) > 1)) )
-            CV_Error( CV_StsBadSize,
-            "Either the number of channels or columns or rows in the input matrix must be =1" );
-
-        d_dims = CV_MAT_CN(dst->type)*dst->cols;
-        d_count = dst->rows;
-    }
-    else
-    {
-        if( !((dst->rows > 1) ^ (CV_MAT_CN(dst->type) > 1)) )
-            CV_Error( CV_StsBadSize,
-            "Either the number of channels or columns or rows in the output matrix must be =1" );
-
-        d_dims = CV_MAT_CN(dst->type)*dst->rows;
-        d_count = dst->cols;
-    }
-
-    if( dst->rows == 1 || dst->cols == 1 )
-        dst = cvReshape( dst, &_dst, 1, d_count );
-
-    if( s_count != d_count )
-        CV_Error( CV_StsUnmatchedSizes, "Both matrices must have the same number of points" );
-
-    if( CV_MAT_DEPTH(src->type) < CV_32F || CV_MAT_DEPTH(dst->type) < CV_32F )
-        CV_Error( CV_StsUnsupportedFormat,
-        "Both matrices must be floating-point (single or double precision)" );
-
-    if( s_dims < 2 || s_dims > 4 || d_dims < 2 || d_dims > 4 )
-        CV_Error( CV_StsOutOfRange,
-        "Both input and output point dimensionality must be 2, 3 or 4" );
-
-    if( s_dims < d_dims - 1 || s_dims > d_dims + 1 )
-        CV_Error( CV_StsUnmatchedSizes,
-        "The dimensionalities of input and output point sets differ too much" );
-
-    if( s_dims == d_dims - 1 )
-    {
-        if( d_count == dst->rows )
-        {
-            ones = cvGetSubRect( dst, &_ones, cvRect( s_dims, 0, 1, d_count ));
-            dst = cvGetSubRect( dst, &_dst, cvRect( 0, 0, s_dims, d_count ));
-        }
-        else
-        {
-            ones = cvGetSubRect( dst, &_ones, cvRect( 0, s_dims, d_count, 1 ));
-            dst = cvGetSubRect( dst, &_dst, cvRect( 0, 0, d_count, s_dims ));
-        }
-    }
-
-    if( s_dims <= d_dims )
-    {
-        if( src->rows == dst->rows && src->cols == dst->cols )
-        {
-            if( CV_ARE_TYPES_EQ( src, dst ) )
-                cvCopy( src, dst );
-            else
-                cvConvert( src, dst );
-        }
-        else
-        {
-            if( !CV_ARE_TYPES_EQ( src, dst ))
-            {
-                temp = cvCreateMat( src->rows, src->cols, dst->type );
-                cvConvert( src, temp );
-                src = temp;
-            }
-            cvTranspose( src, dst );
-        }
-
-        if( ones )
-            cvSet( ones, cvRealScalar(1.) );
-    }
-    else
-    {
-        int s_plane_stride, s_stride, d_plane_stride, d_stride, elem_size;
-
-        if( !CV_ARE_TYPES_EQ( src, dst ))
-        {
-            temp = cvCreateMat( src->rows, src->cols, dst->type );
-            cvConvert( src, temp );
-            src = temp;
-        }
-
-        elem_size = CV_ELEM_SIZE(src->type);
-
-        if( s_count == src->cols )
-            s_plane_stride = src->step / elem_size, s_stride = 1;
-        else
-            s_stride = src->step / elem_size, s_plane_stride = 1;
-
-        if( d_count == dst->cols )
-            d_plane_stride = dst->step / elem_size, d_stride = 1;
-        else
-            d_stride = dst->step / elem_size, d_plane_stride = 1;
-
-        denom = cvCreateMat( 1, d_count, dst->type );
-
-        if( CV_MAT_DEPTH(dst->type) == CV_32F )
-        {
-            const float* xs = src->data.fl;
-            const float* ys = xs + s_plane_stride;
-            const float* zs = 0;
-            const float* ws = xs + (s_dims - 1)*s_plane_stride;
-
-            float* iw = denom->data.fl;
-
-            float* xd = dst->data.fl;
-            float* yd = xd + d_plane_stride;
-            float* zd = 0;
-
-            if( d_dims == 3 )
-            {
-                zs = ys + s_plane_stride;
-                zd = yd + d_plane_stride;
-            }
-
-            for( i = 0; i < d_count; i++, ws += s_stride )
-            {
-                float t = *ws;
-                iw[i] = fabs((double)t) > FLT_EPSILON ? t : 1.f;
-            }
-
-            cvDiv( 0, denom, denom );
-
-            if( d_dims == 3 )
-                for( i = 0; i < d_count; i++ )
-                {
-                    float w = iw[i];
-                    float x = *xs * w, y = *ys * w, z = *zs * w;
-                    xs += s_stride; ys += s_stride; zs += s_stride;
-                    *xd = x; *yd = y; *zd = z;
-                    xd += d_stride; yd += d_stride; zd += d_stride;
-                }
-            else
-                for( i = 0; i < d_count; i++ )
-                {
-                    float w = iw[i];
-                    float x = *xs * w, y = *ys * w;
-                    xs += s_stride; ys += s_stride;
-                    *xd = x; *yd = y;
-                    xd += d_stride; yd += d_stride;
-                }
-        }
-        else
-        {
-            const double* xs = src->data.db;
-            const double* ys = xs + s_plane_stride;
-            const double* zs = 0;
-            const double* ws = xs + (s_dims - 1)*s_plane_stride;
-
-            double* iw = denom->data.db;
-
-            double* xd = dst->data.db;
-            double* yd = xd + d_plane_stride;
-            double* zd = 0;
-
-            if( d_dims == 3 )
-            {
-                zs = ys + s_plane_stride;
-                zd = yd + d_plane_stride;
-            }
-
-            for( i = 0; i < d_count; i++, ws += s_stride )
-            {
-                double t = *ws;
-                iw[i] = fabs(t) > DBL_EPSILON ? t : 1.;
-            }
-
-            cvDiv( 0, denom, denom );
-
-            if( d_dims == 3 )
-                for( i = 0; i < d_count; i++ )
-                {
-                    double w = iw[i];
-                    double x = *xs * w, y = *ys * w, z = *zs * w;
-                    xs += s_stride; ys += s_stride; zs += s_stride;
-                    *xd = x; *yd = y; *zd = z;
-                    xd += d_stride; yd += d_stride; zd += d_stride;
-                }
-            else
-                for( i = 0; i < d_count; i++ )
-                {
-                    double w = iw[i];
-                    double x = *xs * w, y = *ys * w;
-                    xs += s_stride; ys += s_stride;
-                    *xd = x; *yd = y;
-                    xd += d_stride; yd += d_stride;
-                }
-        }
-    }
-}
+//CV_IMPL void cvConvertPointsHomogeneous( const CvMat* src, CvMat* dst )
+//{
+//    Ptr<CvMat> temp, denom;
+//
+//    int i, s_count, s_dims, d_count, d_dims;
+//    CvMat _src, _dst, _ones;
+//    CvMat* ones = 0;
+//
+//    if( !CV_IS_MAT(src) )
+//        CV_Error( !src ? CV_StsNullPtr : CV_StsBadArg,
+//        "The input parameter is not a valid matrix" );
+//
+//    if( !CV_IS_MAT(dst) )
+//        CV_Error( !dst ? CV_StsNullPtr : CV_StsBadArg,
+//        "The output parameter is not a valid matrix" );
+//
+//    if( src == dst || src->data.ptr == dst->data.ptr )
+//    {
+//        if( src != dst && (!CV_ARE_TYPES_EQ(src, dst) || !CV_ARE_SIZES_EQ(src,dst)) )
+//            CV_Error( CV_StsBadArg, "Invalid inplace operation" );
+//        return;
+//    }
+//
+//    if( src->rows > src->cols )
+//    {
+//        if( !((src->cols > 1) ^ (CV_MAT_CN(src->type) > 1)) )
+//            CV_Error( CV_StsBadSize, "Either the number of channels or columns or rows must be =1" );
+//
+//        s_dims = CV_MAT_CN(src->type)*src->cols;
+//        s_count = src->rows;
+//    }
+//    else
+//    {
+//        if( !((src->rows > 1) ^ (CV_MAT_CN(src->type) > 1)) )
+//            CV_Error( CV_StsBadSize, "Either the number of channels or columns or rows must be =1" );
+//
+//        s_dims = CV_MAT_CN(src->type)*src->rows;
+//        s_count = src->cols;
+//    }
+//
+//    if( src->rows == 1 || src->cols == 1 )
+//        src = cvReshape( src, &_src, 1, s_count );
+//
+//    if( dst->rows > dst->cols )
+//    {
+//        if( !((dst->cols > 1) ^ (CV_MAT_CN(dst->type) > 1)) )
+//            CV_Error( CV_StsBadSize,
+//            "Either the number of channels or columns or rows in the input matrix must be =1" );
+//
+//        d_dims = CV_MAT_CN(dst->type)*dst->cols;
+//        d_count = dst->rows;
+//    }
+//    else
+//    {
+//        if( !((dst->rows > 1) ^ (CV_MAT_CN(dst->type) > 1)) )
+//            CV_Error( CV_StsBadSize,
+//            "Either the number of channels or columns or rows in the output matrix must be =1" );
+//
+//        d_dims = CV_MAT_CN(dst->type)*dst->rows;
+//        d_count = dst->cols;
+//    }
+//
+//    if( dst->rows == 1 || dst->cols == 1 )
+//        dst = cvReshape( dst, &_dst, 1, d_count );
+//
+//    if( s_count != d_count )
+//        CV_Error( CV_StsUnmatchedSizes, "Both matrices must have the same number of points" );
+//
+//    if( CV_MAT_DEPTH(src->type) < CV_32F || CV_MAT_DEPTH(dst->type) < CV_32F )
+//        CV_Error( CV_StsUnsupportedFormat,
+//        "Both matrices must be floating-point (single or double precision)" );
+//
+//    if( s_dims < 2 || s_dims > 4 || d_dims < 2 || d_dims > 4 )
+//        CV_Error( CV_StsOutOfRange,
+//        "Both input and output point dimensionality must be 2, 3 or 4" );
+//
+//    if( s_dims < d_dims - 1 || s_dims > d_dims + 1 )
+//        CV_Error( CV_StsUnmatchedSizes,
+//        "The dimensionalities of input and output point sets differ too much" );
+//
+//    if( s_dims == d_dims - 1 )
+//    {
+//        if( d_count == dst->rows )
+//        {
+//            ones = cvGetSubRect( dst, &_ones, cvRect( s_dims, 0, 1, d_count ));
+//            dst = cvGetSubRect( dst, &_dst, cvRect( 0, 0, s_dims, d_count ));
+//        }
+//        else
+//        {
+//            ones = cvGetSubRect( dst, &_ones, cvRect( 0, s_dims, d_count, 1 ));
+//            dst = cvGetSubRect( dst, &_dst, cvRect( 0, 0, d_count, s_dims ));
+//        }
+//    }
+//
+//    if( s_dims <= d_dims )
+//    {
+//        if( src->rows == dst->rows && src->cols == dst->cols )
+//        {
+//            if( CV_ARE_TYPES_EQ( src, dst ) )
+//                cvCopy( src, dst );
+//            else
+//                cvConvert( src, dst );
+//        }
+//        else
+//        {
+//            if( !CV_ARE_TYPES_EQ( src, dst ))
+//            {
+//                temp = cvCreateMat( src->rows, src->cols, dst->type );
+//                cvConvert( src, temp );
+//                src = temp;
+//            }
+//            cvTranspose( src, dst );
+//        }
+//
+//        if( ones )
+//            cvSet( ones, cvRealScalar(1.) );
+//    }
+//    else
+//    {
+//        int s_plane_stride, s_stride, d_plane_stride, d_stride, elem_size;
+//
+//        if( !CV_ARE_TYPES_EQ( src, dst ))
+//        {
+//            temp = cvCreateMat( src->rows, src->cols, dst->type );
+//            cvConvert( src, temp );
+//            src = temp;
+//        }
+//
+//        elem_size = CV_ELEM_SIZE(src->type);
+//
+//        if( s_count == src->cols )
+//            s_plane_stride = src->step / elem_size, s_stride = 1;
+//        else
+//            s_stride = src->step / elem_size, s_plane_stride = 1;
+//
+//        if( d_count == dst->cols )
+//            d_plane_stride = dst->step / elem_size, d_stride = 1;
+//        else
+//            d_stride = dst->step / elem_size, d_plane_stride = 1;
+//
+//        denom = cvCreateMat( 1, d_count, dst->type );
+//
+//        if( CV_MAT_DEPTH(dst->type) == CV_32F )
+//        {
+//            const float* xs = src->data.fl;
+//            const float* ys = xs + s_plane_stride;
+//            const float* zs = 0;
+//            const float* ws = xs + (s_dims - 1)*s_plane_stride;
+//
+//            float* iw = denom->data.fl;
+//
+//            float* xd = dst->data.fl;
+//            float* yd = xd + d_plane_stride;
+//            float* zd = 0;
+//
+//            if( d_dims == 3 )
+//            {
+//                zs = ys + s_plane_stride;
+//                zd = yd + d_plane_stride;
+//            }
+//
+//            for( i = 0; i < d_count; i++, ws += s_stride )
+//            {
+//                float t = *ws;
+//                iw[i] = fabs((double)t) > FLT_EPSILON ? t : 1.f;
+//            }
+//
+//            cvDiv( 0, denom, denom );
+//
+//            if( d_dims == 3 )
+//                for( i = 0; i < d_count; i++ )
+//                {
+//                    float w = iw[i];
+//                    float x = *xs * w, y = *ys * w, z = *zs * w;
+//                    xs += s_stride; ys += s_stride; zs += s_stride;
+//                    *xd = x; *yd = y; *zd = z;
+//                    xd += d_stride; yd += d_stride; zd += d_stride;
+//                }
+//            else
+//                for( i = 0; i < d_count; i++ )
+//                {
+//                    float w = iw[i];
+//                    float x = *xs * w, y = *ys * w;
+//                    xs += s_stride; ys += s_stride;
+//                    *xd = x; *yd = y;
+//                    xd += d_stride; yd += d_stride;
+//                }
+//        }
+//        else
+//        {
+//            const double* xs = src->data.db;
+//            const double* ys = xs + s_plane_stride;
+//            const double* zs = 0;
+//            const double* ws = xs + (s_dims - 1)*s_plane_stride;
+//
+//            double* iw = denom->data.db;
+//
+//            double* xd = dst->data.db;
+//            double* yd = xd + d_plane_stride;
+//            double* zd = 0;
+//
+//            if( d_dims == 3 )
+//            {
+//                zs = ys + s_plane_stride;
+//                zd = yd + d_plane_stride;
+//            }
+//
+//            for( i = 0; i < d_count; i++, ws += s_stride )
+//            {
+//                double t = *ws;
+//                iw[i] = fabs(t) > DBL_EPSILON ? t : 1.;
+//            }
+//
+//            cvDiv( 0, denom, denom );
+//
+//            if( d_dims == 3 )
+//                for( i = 0; i < d_count; i++ )
+//                {
+//                    double w = iw[i];
+//                    double x = *xs * w, y = *ys * w, z = *zs * w;
+//                    xs += s_stride; ys += s_stride; zs += s_stride;
+//                    *xd = x; *yd = y; *zd = z;
+//                    xd += d_stride; yd += d_stride; zd += d_stride;
+//                }
+//            else
+//                for( i = 0; i < d_count; i++ )
+//                {
+//                    double w = iw[i];
+//                    double x = *xs * w, y = *ys * w;
+//                    xs += s_stride; ys += s_stride;
+//                    *xd = x; *yd = y;
+//                    xd += d_stride; yd += d_stride;
+//                }
+//        }
+//    }
+//}
 //
 //cv::Mat cv::findHomography( InputArray _points1, InputArray _points2,
 //                            int method, double ransacReprojThreshold, OutputArray _mask )
