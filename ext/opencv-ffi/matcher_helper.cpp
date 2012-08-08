@@ -1,5 +1,6 @@
 
 #include <opencv2/core/types_c.h>
+#include <opencv2/core/core_c.h>
 
 #include <stdio.h>
 
@@ -14,7 +15,8 @@ typedef struct {
   double *error;
 } MatchSet_t;
 
-extern "C"
+extern "C" {
+
 double computeReprojError( const Match_t *match, const CvMat *model )
 {
   const double* F = model->data.db;
@@ -47,10 +49,23 @@ double computeReprojError( const Match_t *match, const CvMat *model )
        return b;
 }
 
-extern "C"
 void computeSetReprojError( MatchSet_t *set, CvMat *model )
 {
   for( int i = 0; i < set->length; i ++ ) {
     set->error[i] = computeReprojError( &(set->d[i]), model );
   }
+}
+
+void computeSeqReprojError( CvSeq *seq, CvMat *model, double *error )
+{
+  CvSeqReader reader;
+  Match_t match;
+  cvStartReadSeq( seq, &reader, 0 );
+  for( int i = 0; i < seq->total; i ++ ) {
+    CV_READ_SEQ_ELEM( match, reader );
+    error[i] = computeReprojError( &match, model );
+  }
+}
+
+
 }

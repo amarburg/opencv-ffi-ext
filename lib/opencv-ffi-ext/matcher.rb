@@ -69,6 +69,12 @@ module CVFFI
 
     # Match results
     #
+    # A DMatch is strictly index based (doesn't store the actual X,Y 
+    # coords of the points).
+    # It's typically stored in a MatchResults (a wrapper around a CvSeq)
+    #
+    # For that see the (Ruby, not OpenCV) Matches class below
+    #
     class DMatch < NiceFFI::Struct
       layout  :queryIdx, :int,
               :trainIdx, :int,
@@ -96,6 +102,130 @@ module CVFFI
     class MatchResults < SequenceArray
       sequence_class DMatch
     end
+
+
+    class Match <  NiceFFI::Struct
+      layout :train, CvPoint2D32f,
+        :query, CvPoint2D32f,
+        :distance, :double
+
+      #def initialize( one, two, distance )
+      #  @query = one
+      #  @train = two
+      #  @distance = distance
+      #end
+
+      def which( w )
+        case w
+        when 0, :query
+          query
+        when 1, :train
+          train
+        end
+      end
+
+      def left; query; end
+      def one; query; end
+      def right; train; end
+      def two; train; end
+
+      def to_a
+          [ one.x, one.y, two.x, two.y, distance ]
+      end
+
+      # A bit of misdirection due to the wonky FFI initializers
+      def self.from_points( q, t, distance )
+        m = Match.new( nil )
+        m.distance = distance
+        m.query.x = q.x
+        m.query.y = q.y
+        m.train.x = t.x
+        m.train.y = t.y
+        m
+      end
+
+      def self.from_a( a )
+        raise "Need five elements for a Match, this array line has #{a.length}" unless a.length == 5
+        m = Match.new(nil)
+        m.query.x = a.shift
+        m.query.y = a.shift
+        m.train.x = a.shift
+        m.train.y = a.shift
+        m.distance = a.shift
+        m
+      end
+
+    end
+
+    class MatchSeq < SequenceArray
+      sequence_class Match
+
+      def to_Points( which )
+        map { |m| Point.new(  m.which( which ) ) }
+      end 
+    end
+
+    # Small abstraction breakage.  The data in Mogile is a serialization of
+    # a CVFFI struct.   Why am I recreating the data in a different class
+    # instead of just recreating the OpenCV class?
+    class Matches
+      include Enumerable
+
+      def initialize( matches )
+        @matches = matches
+      end
+
+      def length; @matches.length; end
+
+      def at(i)
+        @matches[i]
+      end
+      alias :[] :at
+
+      def each
+        length.times { |i| yield at(i) }
+      end
+
+      def first( n = 1 )
+        Matches.new( @matches.first(n) )
+      end
+        
+
+      def to_CvMat( which )
+        CVFFI::Mat.build( length, 2, :CV_32F ) { |i,j|
+          pt = @matches[i].which(which)
+          (j == 0) ?  pt.x : pt.y
+        }
+      end
+
+      def to_Points( which )
+        @matches.map { |m| Point.new(  m.which( which ) ) }
+      end
+
+      def to_a
+        map { |match| match.to_a } 
+      end
+
+      def self.from_DMatch( matches, query, train )
+        Matches.new( Array.new( matches.length ) { |i|
+          m = matches[i]
+          q = query[m.queryIdx]
+          t = train[m.trainIdx]
+          Match.from_points( CVFFI::Point.new( q ), CVFFI::Point.new( t ), m.distance )
+        } )
+      end
+
+      def self.unserialize( a )
+        Matches.new( a.map! { |d|
+          raise "In Matches.unserialize, line in array isn't the correct length, have #{d.length}, expected 5" unless d.length == 5
+          Match.from_points( CVFFI::Point.new( d.shift(2) ), CVFFI::Point.new( d.shift(2) ), d.shift )
+        } )
+      end
+
+    end
+
+
+
   end
 
 
