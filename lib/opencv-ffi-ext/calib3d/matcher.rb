@@ -56,6 +56,7 @@ module CVFFI
     attach_function :flannBasedMatcher, [:pointer, :pointer, :pointer], CvSeq.typed_pointer
     attach_function :flannBasedMatcherKnn, [:pointer, :pointer, :pointer, :int ], CvSeq.typed_pointer
     attach_function :flannBasedMatcherRadius, [:pointer, :pointer, :pointer, :float ], CvSeq.typed_pointer
+    attach_function :flannBasedMatcherRatioTest, [:pointer, :pointer, :pointer, :float ], CvSeq.typed_pointer
 
     def self.flann_based_matcher( query, train, opts = {} )
       knn = opts[:knn] || 1

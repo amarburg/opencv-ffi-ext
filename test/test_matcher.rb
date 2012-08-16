@@ -110,4 +110,19 @@ class TestMatcher < Test::Unit::TestCase
       }
     }
   end
+
+  def test_flann_based_matcher_ratio_test
+    [2.0].each { |ratio|
+      puts "Testing flann-based matcher with ratio = #{ratio}"
+      opts = { ratio: ratio }
+
+      results = Matcher::flann_based_matcher( @dmat_one, @dmat_two, opts )
+
+      assert_equal results.length, @num_descriptors
+
+      results.each { |result|
+        assert_equal (result.queryIdx + result.trainIdx), (@num_descriptors-1)
+      }
+    }
+  end
 end
