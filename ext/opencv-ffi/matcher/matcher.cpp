@@ -89,22 +89,65 @@ extern "C" {
   }
 
   // bruteForceMatcherKnn and bruteForceMatcher require different strategies for 
-  // convtering the vector<vector<DMatch>> to a CvSeq
-  CvSeq *bruteForceMatcherKnn( CvMat *query, CvMat *train, CvMemStorage *storage, int normType, int knn, bool crossCheck CV_DEFAULT(false) ) 
+  // converting the vector<vector<DMatch>> to a CvSeq
+  CvSeq *bruteForceMatcherKnn( CvMat *query, CvMat *train, 
+                               CvMemStorage *storage, int normType, 
+                               int knn, bool crossCheck CV_DEFAULT(false) ) 
   {
     vector< vector<DMatch> > matches;
     bruteForceMatcherKnnActual( query, train, matches, normType, knn, crossCheck );
     return DMatchToCvSeq( matches, storage, CONVERT_ALL );
   }
 
-  CvSeq *bruteForceMatcher( CvMat *query, CvMat *train, CvMemStorage *storage, int normType, bool crossCheck CV_DEFAULT(false) ) 
+  CvSeq *bruteForceMatcher( CvMat *query, CvMat *train, 
+                            CvMemStorage *storage, int normType, 
+                            bool crossCheck CV_DEFAULT(false) ) 
   {
     vector< vector<DMatch> > matches;
     bruteForceMatcherKnnActual( query, train, matches, normType, 1, crossCheck );
     return DMatchToCvSeq( matches, storage, TAKE_JUST_FIRST );
   }
 
-  CvSeq *bruteForceMatcherRadius( CvMat *query, CvMat *train, CvMemStorage *storage, int normType, float maxDistance, bool crossCheck CV_DEFAULT(false) ) 
+  CvSeq *bruteForceMatcherRatioTest( CvMat *query, CvMat *train, 
+                                     CvMemStorage *storage, int normType, 
+                                     float minRatio, bool crossCheck CV_DEFAULT(false) ) 
+  {
+    vector< vector<DMatch> > matches;
+    bruteForceMatcherKnnActual( query, train, matches, normType, 2, crossCheck );
+    
+    // TODO:  For now, Knn will return a flattened set of matches, may do this differently in the future
+    CvSeq *seq = cvCreateSeq( 0, sizeof( CvSeq ), sizeof( CvDMatch_t ), storage );
+    CvSeqWriter writer;
+    cvStartAppendToSeq( seq, &writer );
+
+    for( vector< vector<DMatch> >::const_iterator itr = matches.begin(); itr != matches.end(); itr++ ) {
+
+      switch( (*itr).size() ) {
+        case 1:
+          writeDmatchToSeqWriter( writer, (*itr)[0] );
+          break;
+        default:
+          // Assumes the matches are sorted in increasing order of distance
+          if( (*itr).size() >= 2 ) {
+            printf("Comparing distaces %f and %f \n", (*itr)[0].distance, (*itr)[1].distance );
+            if( ((*itr)[0].distance * minRatio) < (*itr)[1].distance )  {
+              writeDmatchToSeqWriter( writer, (*itr)[0] );
+            }
+          }
+          break;
+      }
+    }
+    cvEndWriteSeq( &writer );
+
+    //printf("After conversion, vector size = %d, CvSeq size = %d\n", 
+    //    matches.size(), seq->total );
+
+    return seq; 
+  }
+
+  CvSeq *bruteForceMatcherRadius( CvMat *query, CvMat *train, 
+                                  CvMemStorage *storage, int normType, 
+                                  float maxDistance, bool crossCheck CV_DEFAULT(false) ) 
   {
     Mat _train( train );
     Mat _query( query );

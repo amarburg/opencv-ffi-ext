@@ -1,7 +1,7 @@
 
 require 'test/setup'
 require 'opencv-ffi-wrappers'
-require 'opencv-ffi-ext/matcher'
+require 'opencv-ffi-ext'
 
 class TestMatcher < Test::Unit::TestCase
   include CVFFI
@@ -37,6 +37,25 @@ class TestMatcher < Test::Unit::TestCase
         }
       end
     }
+    }
+  end
+
+  # TODO:  BruteForceRadius doesn't appear to be working...
+  def test_brute_force_ratio_test
+    [2.0].each { |ratio|
+      Matcher::valid_norms.each { |norm|
+        puts "Testing brute force matcher with norm #{norm}, ratio = #{ratio}"
+        opts = { norm: norm, ratio: ratio }
+
+        results = Matcher::brute_force_matcher( @dmat_one, @dmat_two, opts )
+
+        puts "   ... returned #{results.length} matches"
+        #assert_equal @num_descriptors, results.length
+
+        #results.each { |result|
+        #  assert_equal (result.queryIdx + result.trainIdx), (@num_descriptors-1)
+        #}
+      }
     }
   end
 
@@ -77,8 +96,8 @@ class TestMatcher < Test::Unit::TestCase
     }
   end
 
-  def test_flann_based_matcher_knn
-    [5.0].each { |radius|
+  def test_flann_based_matcher_radius
+    [100.0].each { |radius|
       puts "Testing flann-based matcher with radius = #{radius}"
       opts = {radius: radius }
 

@@ -30,18 +30,22 @@ module CVFFI
     attach_function :bruteForceMatcher, [:pointer, :pointer, :pointer, :int, :bool], CvSeq.typed_pointer
     attach_function :bruteForceMatcherKnn, [:pointer, :pointer, :pointer, :int, :int, :bool], CvSeq.typed_pointer
     attach_function :bruteForceMatcherRadius, [:pointer, :pointer, :pointer, :int, :float, :bool], CvSeq.typed_pointer
+    attach_function :bruteForceMatcherRatioTest, [:pointer, :pointer, :pointer, :int, :float, :bool], CvSeq.typed_pointer
 
     def self.brute_force_matcher( query, train, opts = {} )
       normType = opts[:norm_type] || opts[:norm] || :NORM_L2
       knn = opts[:knn] || 1
       radius = opts[:radius] || nil
+      ratio =  opts[:ratio] || nil
       crossCheck = false 
 
       pool = CVFFI::cvCreateMemStorage(0);
-      seq = if radius.nil?
-              bruteForceMatcherKnn( query.to_CvMat, train.to_CvMat, pool, normType, knn, crossCheck )
-            else
+      seq = if ratio != nil
+              bruteForceMatcherRatioTest( query.to_CvMat, train.to_CvMat, pool, normType, ratio, crossCheck )
+              elsif radius != nil
               bruteForceMatcherRadius( query.to_CvMat, train.to_CvMat, pool, normType, radius, crossCheck )
+            else
+              bruteForceMatcherKnn( query.to_CvMat, train.to_CvMat, pool, normType, knn, crossCheck )
             end
 
       MatchResults.new( seq, pool );
