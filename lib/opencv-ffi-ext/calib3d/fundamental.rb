@@ -34,7 +34,7 @@ module CVFFI
       # algorithm but it will only do it if you specify exactly 
       # 7 elements of points1.  
 
-      count = [ points1.rows, points1.cols ].max
+      count = [ points1.height, points1.width ].max
       fundamental = case count
                     when 7
                       params.method = :CV_FM_7POINT
