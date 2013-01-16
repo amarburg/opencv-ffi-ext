@@ -97,7 +97,7 @@ module CVFFI
       end
 
       def self.from_a(arr)
-        raise "Incorrect number of elements in array -- it's #{a.length}, expecting #{keys.length}" unless a.length == keys.length
+        raise "Incorrect number of elements in array -- it's #{arr.length}, expecting #{keys.length}" unless arr.length == keys.length
         h = {}
         keys.each { |key| h[key] = arr.shift }
         DMatch.new( h )
