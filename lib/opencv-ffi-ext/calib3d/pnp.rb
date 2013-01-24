@@ -1,4 +1,5 @@
 
+require 'opencv-ffi'
 require 'opencv-ffi-wrappers'
 require 'opencv-ffi-wrappers/matrix'
 
@@ -6,6 +7,7 @@ require 'opencv-ffi-wrappers/matrix'
 module CVFFI
 
   module Calib3d
+    include CVFFI
     extend NiceFFI::Library
 
     libs_dir = File.dirname(__FILE__) + "/../../../ext/opencv-ffi/"
@@ -38,10 +40,19 @@ module CVFFI
 
     def self.estimatePnP( objPoints, imagePoints, camera, params )
 
-      rvec = Mat.new( 3,3, :CV_32F )
-      tvec = Mat.new( 3,1, :CV_32F )
-      inliers = Mat.new(1,1,:CV_32F )
-      cvSolvePnPRansac( objPoints, imagePoints,
+      # As solvePnPRansac modifies rvec and tvec it's fairly important
+      # that these pointers match up for copying.  
+      #
+      # Opencv's function defines "inliers" as an array of inlier
+      # indices .. so it's variable length depending on how
+      # many inliers there are.  For the C interface I've redefined
+      # it as a status mask, as per the cvFundamental* functions.
+      # So it's fixed length
+      rvec = CVFFI::cvCreateMat( 3, 1, :CV_64F )
+      tvec = CVFFI::cvCreateMat( 3, 1, :CV_64F )
+      inliers = CVFFI::cvCreateMat( objPoints.height, 1, :CV_8U )
+
+      cvSolvePnPRansac( objPoints.to_CvMat, imagePoints.to_CvMat,
                         camera.to_CvMat, nil, rvec, tvec,
                         params.use_extrinsic_guess,
                         params.iterations_count,
@@ -50,7 +61,7 @@ module CVFFI
                         inliers,
                         CvPnPMethod[params.flags] )
 
-      [rvec, tvec, inliers]
+      [rvec.to_Mat, tvec.to_Mat, inliers.to_Mat]
     end
   end
 end
