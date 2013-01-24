@@ -30,7 +30,7 @@ class TestPnP < Test::Unit::TestCase
     end
 
     def test_pnp_ransac
-      r,t,inliers = Calib3d::estimatePnP( @objects, @images, @camera, @params )
+      r,t,inliers = Calib3d::solvePnPRansac( @objects, @images, @camera, @params )
 
       r.print "r"
       t.print "t"
@@ -44,7 +44,7 @@ class TestPnP < Test::Unit::TestCase
                            [1.0, -1.0],
                            [100.0, -1.0] ] ).to_CvMat
 
-      r,t,inliers = Calib3d::estimatePnP( @objects, images, @camera, @params )
+      r,t,inliers = Calib3d::solvePnPRansac( @objects, images, @camera, @params )
 
       r.print "r"
       t.print "t"

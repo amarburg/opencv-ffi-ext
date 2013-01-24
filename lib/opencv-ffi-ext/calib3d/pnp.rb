@@ -82,9 +82,6 @@ module CVFFI
       [rvec.to_Mat, tvec.to_Mat, inliers.to_Mat]
     end
 
-   def self.estimatePnP( o, i, c, p )
-     solvePnPRansac( o, i, c, p )
-   end
   end
 end
   
