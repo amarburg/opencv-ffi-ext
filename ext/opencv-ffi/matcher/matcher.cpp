@@ -1,3 +1,4 @@
+
 #include <opencv2/features2d/features2d.hpp>
 #include <opencv2/core/core_c.h>
 #include <vector>
@@ -105,25 +106,13 @@ extern "C" {
     Mat _train( train );
     Mat _query( query );
 
-    if( normType == NORM_L2 ) {
-      BruteForceMatcher< L2<float> > matcher;  //( normType, crossCheck );
+    BFMatcher matcher( normType, crossCheck );
       matcher.knnMatch( query, train, matches, knn );
-    } else if (normType == NORM_L2SQR ) {
-      BruteForceMatcher< SL2<float> > matcher;  //( normType, crossCheck );
-      matcher.knnMatch( query, train, matches, knn );
-    } else if (normType == NORM_L1 ) {
-      BruteForceMatcher< L1<float> > matcher;  //( normType, crossCheck );
-      matcher.knnMatch( query, train, matches, knn );
-    } else if (normType == NORM_HAMMING ) {
-      BruteForceMatcher< Hamming > matcher;  //( normType, crossCheck );
-      matcher.knnMatch( query, train, matches, knn );
-    } else {
-      printf("bruteForceMatcherKnn doesn't understand norm type %d\n", normType);
-    }
+
   }
 
-  // bruteForceMatcherKnn and bruteForceMatcher require different strategies for 
-  // converting the vector<vector<DMatch>> to a CvSeq
+  // bruteForceMatcherKnn and bruteForceMatcher require different 
+  //Jstrategies for converting the vector<vector<DMatch>> to a CvSeq
   CvSeq *bruteForceMatcherKnn( CvMat *query, CvMat *train, 
                                CvMemStorage *storage, int normType, 
                                int knn, bool crossCheck CV_DEFAULT(false) ) 
@@ -159,22 +148,9 @@ extern "C" {
     Mat _query( query );
     vector< vector<DMatch> > matches;
 
-    if( normType == NORM_L2 ) {
-        BruteForceMatcher< L2<float> > matcher;  //( normType, crossCheck );
-        matcher.radiusMatch( query, train, matches, maxDistance );
-    } else if (normType == NORM_L2SQR ) {
-        BruteForceMatcher< SL2<float> > matcher;  //( normType, crossCheck );
-        matcher.radiusMatch( query, train, matches, maxDistance );
-    } else if (normType == NORM_L1 ) {
-        BruteForceMatcher< L1<float> > matcher;  //( normType, crossCheck );
-        matcher.radiusMatch( query, train, matches, maxDistance );
-    } else if (normType == NORM_HAMMING) {
-        BruteForceMatcher< Hamming > matcher;  //( normType, crossCheck );
-        matcher.radiusMatch( query, train, matches, maxDistance );
-    } else {
-        printf("bruteForceMatcherRadius doesn't understand norm type %d\n", normType);
-    }
-
+    BFMatcher matcher( normType, crossCheck );
+    matcher.radiusMatch( query, train, matches, maxDistance );
+    
     return DMatchToCvSeq( matches, storage, CONVERT_ALL );
   }
 
