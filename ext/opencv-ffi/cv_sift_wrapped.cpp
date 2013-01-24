@@ -3,6 +3,7 @@
 
 #include <assert.h>
 #include <opencv2/core/core_c.h>
+#include <opencv2/nonfree/features2d.hpp>
 
 #include "keypoint.h"
 #include "cv_sift_wrapped.h"
@@ -57,7 +58,9 @@ void cvSIFTWrapperDetect( const CvArr *img,
                     CvSIFTParams_t params )
 {
   // Detector-specific constructor
-  SIFT sift( params.threshold, params.edgeThreshold, params.nOctaves, params.nOctaveLayers );
+  //SIFT sift( params.threshold, params.edgeThreshold, params.nOctaves, params.nOctaveLayers );
+  // TODO:  Port in the numFeatures and sigma params.  Clean up unused params?
+  SIFT sift(0, params.nOctaveLayers, params.threshold, params.edgeThreshold, 1.6 );
 
   vector<KeyPoint> kps;
   CvMat stub;
@@ -81,12 +84,7 @@ CvMat *cvSIFTWrapperDetectDescribe( const CvArr *img,
     CvMemStorage *storage,
     CvSIFTParams_t params )
 {
-  SIFT::CommonParams   commonParams( params.nOctaves, params.nOctaveLayers );
-  SIFT::DetectorParams detectorParams( params.threshold, params.edgeThreshold );
-  SIFT::DescriptorParams descriptorParams( params.magnification, true, true );
-
-  // Constructor for both detection and description
-  SIFT sift( commonParams, detectorParams, descriptorParams );
+  SIFT sift(0, params.nOctaveLayers, params.threshold, params.edgeThreshold, 1.6 );
 
   vector <KeyPoint> kps;
   Mat descs(1,1,CV_32FC1);
