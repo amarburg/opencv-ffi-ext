@@ -41,7 +41,9 @@ module CVFFI
 #      int flags CV_DEFAULT(ITERATIVE) )
 
 
-# Calls the non-ransac pnp algorithm
+    # Calls the non-ransac pnp algorithm
+    #
+    # TODO:  Be able to provide an extrinsic guess (r and t) 
    def self.solvePnP( objPoints, imagePoints, camera, params )
 
       rvec = CVFFI::cvCreateMat( 3, 1, :CV_64F )
@@ -56,6 +58,9 @@ module CVFFI
     end
  
 
+   # TODO:  Be able to provide an extrinsic guess (r and t) to 
+   # cvSolvePnPRansac
+   #
    def self.solvePnPRansac( objPoints, imagePoints, camera, params )
 
       # As solvePnPRansac modifies rvec and tvec it's fairly important
@@ -65,12 +70,12 @@ module CVFFI
       # indices .. so it's variable length depending on how
       # many inliers there are.  For the C interface I've redefined
       # it as a status mask, as per the cvFundamental* functions.
-      # So it's fixed length
       rvec = CVFFI::cvCreateMat( 3, 1, :CV_64F )
       tvec = CVFFI::cvCreateMat( 3, 1, :CV_64F )
-      inliers = CVFFI::cvCreateMat( objPoints.height, 1, :CV_8U )
+      objCvMat = objPoints.to_CvMat
+      inliers = CVFFI::cvCreateMat( objCvMat.height, 1, :CV_8U )
 
-      cvSolvePnPRansac( objPoints.to_CvMat, imagePoints.to_CvMat,
+      cvSolvePnPRansac( objCvMat, imagePoints.to_CvMat,
                         camera.to_CvMat, nil, rvec, tvec,
                         params.use_extrinsic_guess,
                         params.iterations_count,
