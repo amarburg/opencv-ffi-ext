@@ -28,6 +28,8 @@ module CVFFI
 
     attach_function :cvSolvePnPRansac, [ :pointer, :pointer, :pointer, :pointer, :pointer, :pointer, :bool, :int, :float, :int, :pointer, :cvPnPMethod ], :void
 
+    attach_function :cvSolvePnP, [ :pointer, :pointer, :pointer, :pointer, :pointer, :pointer, :bool, :cvPnPMethod ], :void
+
 #void cvSolvePnPRansac( CvMat *objectPoints, CvMat *imagePoints,
 #      CvMat *cameraMatrix, Cvmat *distCoeffs,
 #      CvMat *rvec, CvMat *tvec, 
@@ -38,7 +40,23 @@ module CVFFI
 #      CvMat *inliers CV_DEFAULT(NULL),
 #      int flags CV_DEFAULT(ITERATIVE) )
 
-    def self.estimatePnP( objPoints, imagePoints, camera, params )
+
+# Calls the non-ransac pnp algorithm
+   def self.solvePnP( objPoints, imagePoints, camera, params )
+
+      rvec = CVFFI::cvCreateMat( 3, 1, :CV_64F )
+      tvec = CVFFI::cvCreateMat( 3, 1, :CV_64F )
+
+      cvSolvePnP( objPoints.to_CvMat, imagePoints.to_CvMat,
+                        camera.to_CvMat, nil, rvec, tvec,
+                        params.use_extrinsic_guess,
+                        CvPnPMethod[params.flags] )
+
+      [rvec.to_Mat, tvec.to_Mat]
+    end
+ 
+
+   def self.solvePnPRansac( objPoints, imagePoints, camera, params )
 
       # As solvePnPRansac modifies rvec and tvec it's fairly important
       # that these pointers match up for copying.  
@@ -63,6 +81,10 @@ module CVFFI
 
       [rvec.to_Mat, tvec.to_Mat, inliers.to_Mat]
     end
+
+   def self.estimatePnP( o, i, c, p )
+     solvePnPRansac( o, i, c, p )
+   end
   end
 end
   

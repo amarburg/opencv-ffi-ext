@@ -12,6 +12,37 @@ using namespace cv;
 
 extern "C" {
 
+  void cvSolvePnP( CvMat *objectPoints, CvMat *imagePoints,
+      CvMat *cameraMatrix, CvMat *distCoeffs,
+      CvMat *rvec, CvMat *tvec, 
+      bool useExtrinsicGuess CV_DEFAULT(false),
+      int flags CV_DEFAULT(CV_ITERATIVE) )
+  {
+    // TODO:  Should check that objectPoints and imagePoints
+    // are of correct dimensions and equal to each other...
+    // or let solvePnPRansac do it...
+
+    Mat _objectPts = cvarrToMat( objectPoints ),
+    _imagePts = cvarrToMat( imagePoints ),
+    _cameraMat = cvarrToMat( cameraMatrix ),
+    _distCoeffs = cvarrToMat( distCoeffs );
+
+    CV_Assert( CV_MAT_TYPE(rvec->type) == CV_64F && 
+        CV_MAT_TYPE(tvec->type) == CV_64F &&
+        rvec->rows == 3 && rvec->cols == 1 &&
+        tvec->rows == 3 && tvec->cols == 1 );
+
+    Mat _rvec = cvarrToMat( rvec ), _rvec0 = rvec, 
+        _tvec = cvarrToMat( tvec ), _tvec0 = tvec;
+
+    solvePnP( _objectPts, _imagePts, _cameraMat, _distCoeffs,
+        _rvec, _tvec, useExtrinsicGuess, flags );
+
+    CV_Assert( _tvec0.data == _tvec.data );
+    CV_Assert( _rvec0.data == _rvec.data );
+  }
+
+
   void cvSolvePnPRansac( CvMat *objectPoints, CvMat *imagePoints,
       CvMat *cameraMatrix, CvMat *distCoeffs,
       CvMat *rvec, CvMat *tvec, 
@@ -22,6 +53,10 @@ extern "C" {
       CvMat *inliers CV_DEFAULT(NULL),
       int flags CV_DEFAULT(CV_ITERATIVE) )
   {
+    // TODO:  Should check that objectPoints and imagePoints
+    // are of correct dimensions and equal to each other...
+    // or let solvePnPRansac do it...
+
     Mat _objectPts = cvarrToMat( objectPoints ),
     _imagePts = cvarrToMat( imagePoints ),
     _cameraMat = cvarrToMat( cameraMatrix ),
@@ -34,7 +69,7 @@ extern "C" {
 
     Mat _rvec = cvarrToMat( rvec ), _rvec0 = rvec, 
         _tvec = cvarrToMat( tvec ), _tvec0 = tvec,
-         _inliersDst;
+        _inliersDst;
 
     if( inliers != NULL ) {
       int count = MAX( objectPoints->cols, objectPoints->rows );
@@ -46,10 +81,6 @@ extern "C" {
     solvePnPRansac( _objectPts, _imagePts, _cameraMat, _distCoeffs,
         _rvec, _tvec, useExtrinsicGuess, iterationsCount, reprojectionError,
         minInliersCount, _inliersDst, flags );
-
-    cout << _objectPts << endl << _imagePts << endl << _cameraMat << endl;
-    cout << _rvec << endl;
-    cout << _tvec << endl;
 
     CV_Assert( _tvec0.data == _tvec.data );
     CV_Assert( _rvec0.data == _rvec.data );
