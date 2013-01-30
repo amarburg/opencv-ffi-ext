@@ -37,7 +37,8 @@ extern "C" {
 
   CvSeq *DMatchToCvSeq( const vector< vector<DMatch> > &matches, CvMemStorage *storage, int doTakeFirst )
   {
-    // TODO:  For now, Knn will return a flattened set of matches, may do this differently in the future
+    // TODO:  For now, Knn will return a flattened set of matches, 
+    // may do this differently in the future
     CvSeq *seq = cvCreateSeq( 0, sizeof( CvSeq ), sizeof( CvDMatch_t ), storage );
 
     CvSeqWriter writer;
@@ -68,7 +69,8 @@ extern "C" {
   CvSeq *DMatchToCvSeqRatioTest( const vector< vector<DMatch> > &matches, CvMemStorage *storage, float minRatio )
   {
 
-    // TODO:  For now, Knn will return a flattened set of matches, may do this differently in the future
+    // TODO:  For now, Knn will return a flattened set of matches,
+    // may do this differently in the future
     CvSeq *seq = cvCreateSeq( 0, sizeof( CvSeq ), sizeof( CvDMatch_t ), storage );
     CvSeqWriter writer;
     cvStartAppendToSeq( seq, &writer );
@@ -82,9 +84,12 @@ extern "C" {
         default:
           // Assumes the matches are sorted in increasing order of distance
           if( (*itr).size() >= 2 ) {
-            printf("Comparing distaces %f and %f \n", (*itr)[0].distance, (*itr)[1].distance );
+            printf("Comparing distaces %f and %f (%f)", (*itr)[0].distance, (*itr)[1].distance, (*itr)[1].distance/(*itr)[0].distance );
             if( ((*itr)[0].distance * minRatio) < (*itr)[1].distance )  {
+              printf(" accept\n");
               writeDmatchToSeqWriter( writer, (*itr)[0] );
+            } else {
+              printf(" reject\n");
             }
           }
           break;
@@ -137,6 +142,8 @@ extern "C" {
   {
     vector< vector<DMatch> > matches;
     bruteForceMatcherKnnActual( query, train, matches, normType, 2, crossCheck );
+
+    printf( "Brute force matcher with ratio test %f\n", minRatio );
    return DMatchToCvSeqRatioTest( matches, storage, minRatio );
   }
 
