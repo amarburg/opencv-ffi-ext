@@ -12,10 +12,13 @@ Gem::Specification.new do |s|
   s.description = %q{Native compiled extensions to OpenCV-FFI.}
 
   s.files         = `git ls-files`.split("\n")
+
+  # As of Rubygems 1.8.25, the ran_rake flag prevents running
+  # more than one mkrf/Rakefile based extension in a gem.
+  # Bundling the three into a single Rakefile gets around that..
 #  s.extensions    << "ext/eigen/mkrf_conf.rb"
 #  s.extensions    << "ext/opencv-ffi/mkrf_conf.rb"
 #  s.extensions    << "ext/opensurf/mkrf_conf.rb"
-  
   s.extensions << "ext/Rakefile"
 
   s.test_files    = `git ls-files -- {test,spec,features}/*`.split("\n")

@@ -1,9 +1,4 @@
 
-puts "In eigen/mkrf_conf"
-
-# Something in the bundler/gem install process is sanitizing
-# the Gem path and I can't find mkrf...
-ENV['GEM_PATH'] = ENV['_ORIGINAL_GEM_PATH']
 require '../mkrf-monkey'
 
 # The compiler for availability checking must be specified as 'g++'
