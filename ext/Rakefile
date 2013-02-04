@@ -6,7 +6,7 @@ task :default => libs
 libs.each { |l|
   task l do
     Dir.chdir( [File.dirname(__FILE__),l].join('/') )
-    ruby 'mkrf_conf.rb' unless File.exists?( 'Rakefile' )
+    sh "bundle exec ruby 'mkrf_conf.rb'" unless File.exists?( 'Rakefile' )
     sh 'rake build_library'
   end
 }
