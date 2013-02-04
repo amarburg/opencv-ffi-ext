@@ -1,3 +1,7 @@
+
+puts ENV.keys
+puts ENV['GEM_PATH']
+
 require '../mkrf-monkey'
 
 # The compiler for availability checking must be specified as 'g++'
