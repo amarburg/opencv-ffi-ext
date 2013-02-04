@@ -1,0 +1,16 @@
+
+# Something in the bundler/gem install process is sanitizing
+# the Gem path and I can't find mkrf...
+ENV['GEM_PATH'] = ENV['_ORIGINAL_GEM_PATH']
+
+%w( opencv-ffi opensurf eigen ).each { |dir|
+
+  task dir do
+    #sh "cd #{dir}"
+    #ruby "mkrf_conf.rb"
+    sh "cd #{dir} && ruby mkrf_conf.rb"
+    sh "cd #{dir} && rake"
+  end
+
+  task :default => dir
+}
