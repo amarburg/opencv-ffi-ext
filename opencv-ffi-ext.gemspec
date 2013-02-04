@@ -12,9 +12,10 @@ Gem::Specification.new do |s|
   s.description = %q{Native compiled extensions to OpenCV-FFI.}
 
   s.files         = `git ls-files`.split("\n")
-  s.extensions    = %w( ext/opencv-ffi/mkrf_conf.rb 
-                        ext/opensurf/mkrf_conf.rb
-                        ext/eigen/mkrf_conf.rb )
+  s.extensions    << "ext/opencv-ffi/mkrf_conf.rb"
+  s.extensions    << "ext/opensurf/mkrf_conf.rb"
+  s.extensions    << "ext/eigen/mkrf_conf.rb"
+
   s.test_files    = `git ls-files -- {test,spec,features}/*`.split("\n")
   s.executables   = `git ls-files -- bin/*`.split("\n").map{ |f| File.basename(f) }
   s.require_paths = ["lib"]
