@@ -1,5 +1,10 @@
 
 puts ENV.keys
+
+ENV.keys.each { |k|
+  puts "#{k} : #{ENV[k]}"
+}
+
 puts ENV['GEM_PATH']
 
 require '../mkrf-monkey'
