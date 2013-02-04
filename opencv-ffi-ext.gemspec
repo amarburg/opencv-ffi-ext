@@ -16,6 +16,8 @@ Gem::Specification.new do |s|
   s.extensions    << "ext/opencv-ffi/mkrf_conf.rb"
   s.extensions    << "ext/opensurf/mkrf_conf.rb"
 
+puts s.extensions
+
   s.test_files    = `git ls-files -- {test,spec,features}/*`.split("\n")
   s.executables   = `git ls-files -- bin/*`.split("\n").map{ |f| File.basename(f) }
   s.require_paths = ["lib"]
