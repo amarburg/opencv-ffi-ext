@@ -45,7 +45,14 @@ module CVFFI
               elsif radius != nil
               bruteForceMatcherRadius( query.to_CvMat, train.to_CvMat, pool, normType, radius, crossCheck )
             else
-              bruteForceMatcherKnn( query.to_CvMat, train.to_CvMat, pool, normType, knn, crossCheck )
+              if knn == 1
+                # This may seem a bit odd -- why not call MatcherKnn with knn=1
+                # the bruteForceMatcher (non-Knn) calculates the ratio
+                # between the first and second descriptors ... Knn doesn't bother
+                bruteForceMatcher( query.to_CvMat, train.to_CvMat, pool, normType, crossCheck )
+              else
+                bruteForceMatcherKnn( query.to_CvMat, train.to_CvMat, pool, normType, knn, crossCheck )
+              end
             end
 
       MatchResults.new( seq, pool );

@@ -54,7 +54,6 @@ extern "C" {
             ratio = (*itr)[1].distance/(*itr)[0].distance;
           else
             ratio = 0.0;
-
           writeDmatchToSeqWriter( writer, (*itr)[0], ratio );
         }
       } else {
