@@ -18,19 +18,21 @@ struct CvDMatch_t {
   int imgIdx;
 
   float distance;
+  float ratio;
 };
 
 enum { CONVERT_ALL = 0, TAKE_JUST_FIRST = 1 };
 
 extern "C" {
 
-  static void writeDmatchToSeqWriter( CvSeqWriter &writer, const DMatch &dmatch )
+  static void writeDmatchToSeqWriter( CvSeqWriter &writer, const DMatch &dmatch, float ratio = 0.0 )
   {
     CvDMatch_t dm;
     dm.queryIdx = dmatch.queryIdx;
     dm.trainIdx = dmatch.trainIdx;
     dm.imgIdx   = dmatch.imgIdx;
     dm.distance = dmatch.distance;
+    dm.ratio    = ratio;
     CV_WRITE_SEQ_ELEM( dm, writer );
 
   }
@@ -40,6 +42,7 @@ extern "C" {
     // TODO:  For now, Knn will return a flattened set of matches, 
     // may do this differently in the future
     CvSeq *seq = cvCreateSeq( 0, sizeof( CvSeq ), sizeof( CvDMatch_t ), storage );
+    float ratio;
 
     CvSeqWriter writer;
     cvStartAppendToSeq( seq, &writer );
@@ -47,7 +50,12 @@ extern "C" {
 
       if( doTakeFirst == TAKE_JUST_FIRST ) {
         if( !(*itr).empty() ) {
-          writeDmatchToSeqWriter( writer, (*itr)[0] );
+          if( (*itr).size() >= 2 )
+            ratio = (*itr)[1].distance/(*itr)[0].distance;
+          else
+            ratio = 0.0;
+
+          writeDmatchToSeqWriter( writer, (*itr)[0], ratio );
         }
       } else {
         // Take then all
@@ -74,6 +82,7 @@ extern "C" {
     CvSeq *seq = cvCreateSeq( 0, sizeof( CvSeq ), sizeof( CvDMatch_t ), storage );
     CvSeqWriter writer;
     cvStartAppendToSeq( seq, &writer );
+    float ratio;
 
     for( vector< vector<DMatch> >::const_iterator itr = matches.begin(); itr != matches.end(); itr++ ) {
 
@@ -84,12 +93,13 @@ extern "C" {
         default:
           // Assumes the matches are sorted in increasing order of distance
           if( (*itr).size() >= 2 ) {
-            printf("Comparing distaces %f and %f (%f)", (*itr)[0].distance, (*itr)[1].distance, (*itr)[1].distance/(*itr)[0].distance );
-            if( ((*itr)[0].distance * minRatio) < (*itr)[1].distance )  {
-              printf(" accept\n");
-              writeDmatchToSeqWriter( writer, (*itr)[0] );
+            ratio = (*itr)[1].distance/(*itr)[0].distance;
+            //printf("Comparing distaces %f and %f (%f)", (*itr)[0].distance, (*itr)[1].distance, (*itr)[1].distance/(*itr)[0].distance );
+            if( ratio > minRatio )  {
+              //printf(" accept\n");
+              writeDmatchToSeqWriter( writer, (*itr)[0], ratio );
             } else {
-              printf(" reject\n");
+              //printf(" reject\n");
             }
           }
           break;

@@ -84,10 +84,11 @@ module CVFFI
       layout  :queryIdx, :int,
               :trainIdx, :int,
               :imgIdx, :int,
-              :distance, :float
+              :distance, :float,
+              :ratio, :float
 
       def self.keys
-        [ :queryIdx, :trainIdx, :imgIdx, :distance ]
+        [ :queryIdx, :trainIdx, :imgIdx, :distance, :ratio ]
       end
 
       def keys; self.class.keys; end
