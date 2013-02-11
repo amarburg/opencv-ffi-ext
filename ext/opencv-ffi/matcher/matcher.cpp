@@ -122,12 +122,12 @@ extern "C" {
     Mat _query( query );
 
     BFMatcher matcher( normType, crossCheck );
-      matcher.knnMatch( query, train, matches, knn );
+    matcher.knnMatch( query, train, matches, knn );
 
   }
 
   // bruteForceMatcherKnn and bruteForceMatcher require different 
-  //Jstrategies for converting the vector<vector<DMatch>> to a CvSeq
+  // strategies for converting the vector<vector<DMatch>> to a CvSeq
   CvSeq *bruteForceMatcherKnn( CvMat *query, CvMat *train, 
                                CvMemStorage *storage, int normType, 
                                int knn, bool crossCheck CV_DEFAULT(false) ) 
@@ -152,8 +152,6 @@ extern "C" {
   {
     vector< vector<DMatch> > matches;
     bruteForceMatcherKnnActual( query, train, matches, normType, 2, crossCheck );
-
-    printf( "Brute force matcher with ratio test %f\n", minRatio );
    return DMatchToCvSeqRatioTest( matches, storage, minRatio );
   }
 
