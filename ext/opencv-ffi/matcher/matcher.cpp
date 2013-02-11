@@ -21,6 +21,16 @@ struct CvDMatch_t {
   float ratio;
 };
 
+struct CvMatcherParams_t {
+  int normType;
+  int knn;
+  bool calculateRatios;
+  float minRatio;
+  float minRadius;
+  bool crossCheck;
+};
+
+
 enum { CONVERT_ALL = 0, TAKE_JUST_FIRST = 1 };
 
 extern "C" {
@@ -37,7 +47,7 @@ extern "C" {
 
   }
 
-  CvSeq *DMatchToCvSeq( const vector< vector<DMatch> > &matches, CvMemStorage *storage, int doTakeFirst )
+  CvSeq *DMatchToCvSeq( const vector< vector<DMatch> > &matches, CvMemStorage *storage, int doTakeFirst, bool calculateRatios CV_DEFAULT(false) )
   {
     // TODO:  For now, Knn will return a flattened set of matches, 
     // may do this differently in the future
@@ -50,15 +60,20 @@ extern "C" {
 
       if( doTakeFirst == TAKE_JUST_FIRST ) {
         if( !(*itr).empty() ) {
-          if( (*itr).size() >= 2 )
-            ratio = (*itr)[1].distance/(*itr)[0].distance;
-          else
+
+          if( !calculateRatios  || (*itr).size() == 1 )
             ratio = 0.0;
+          else
+            ratio = (*itr)[1].distance/(*itr)[0].distance;
+
           writeDmatchToSeqWriter( writer, (*itr)[0], ratio );
         }
       } else {
         // Take then all
         for( vector<DMatch>::const_iterator itr2 = (*itr).begin();  itr2 != (*itr).end(); itr2++ ) {
+
+// TODO: Code to calculate ratios...
+
           writeDmatchToSeqWriter( writer, (*itr2) );
         }
       }
@@ -117,16 +132,19 @@ extern "C" {
   //##### Brute Force Matcher #######
   void bruteForceMatcherKnnActual( CvMat *query, CvMat *train, vector< vector<DMatch> > &matches, int normType, int knn, bool crossCheck CV_DEFAULT(false) ) 
   {
-    Mat _train( train );
-    Mat _query( query );
-
     BFMatcher matcher( normType, crossCheck );
     matcher.knnMatch( query, train, matches, knn );
-
   }
 
-  // bruteForceMatcherKnn and bruteForceMatcher require different 
-  // strategies for converting the vector<vector<DMatch>> to a CvSeq
+  CvSeq *bruteForceMatcher( CvMat *query, CvMat *train, 
+                               CvMemStorage *storage, int normType, 
+                               bool crossCheck CV_DEFAULT(false) ) 
+  {
+    vector< vector<DMatch> > matches;
+    bruteForceMatcherKnnActual( query, train, matches, normType, 1, crossCheck );
+    return DMatchToCvSeq( matches, storage, TAKE_JUST_FIRST );
+  }
+
   CvSeq *bruteForceMatcherKnn( CvMat *query, CvMat *train, 
                                CvMemStorage *storage, int normType, 
                                int knn, bool crossCheck CV_DEFAULT(false) ) 
@@ -134,15 +152,6 @@ extern "C" {
     vector< vector<DMatch> > matches;
     bruteForceMatcherKnnActual( query, train, matches, normType, knn, crossCheck );
     return DMatchToCvSeq( matches, storage, CONVERT_ALL );
-  }
-
-  CvSeq *bruteForceMatcher( CvMat *query, CvMat *train, 
-                            CvMemStorage *storage, int normType, 
-                            bool crossCheck CV_DEFAULT(false) ) 
-  {
-    vector< vector<DMatch> > matches;
-    bruteForceMatcherKnnActual( query, train, matches, normType, 2, crossCheck );
-    return DMatchToCvSeq( matches, storage, TAKE_JUST_FIRST );
   }
 
   CvSeq *bruteForceMatcherRatioTest( CvMat *query, CvMat *train, 
@@ -158,8 +167,6 @@ extern "C" {
                                   CvMemStorage *storage, int normType, 
                                   float maxDistance, bool crossCheck CV_DEFAULT(false) ) 
   {
-    Mat _train( train );
-    Mat _query( query );
     vector< vector<DMatch> > matches;
 
     BFMatcher matcher( normType, crossCheck );
@@ -168,6 +175,30 @@ extern "C" {
     return DMatchToCvSeq( matches, storage, CONVERT_ALL );
   }
 
+
+  // This is the "universal" function parameterized through params.
+  CvSeq *bruteForceMatcherParams( CvMat *query, CvMat *train, CvMemStorage *storage,
+      CvMatcherParams_t *params )
+  {
+    int knn = params->knn;
+    if( params->calculateRatios && params->knn == 1 ) knn = 2;
+
+    vector< vector<DMatch> > matches;
+    BFMatcher matcher( params->normType, params->crossCheck );
+
+    if (params->minRadius > 0.0 ) 
+      matcher.radiusMatch( query, train, matches, params->minRadius ); 
+    else 
+      matcher.knnMatch( query, train, matches, knn );
+
+    if( params->minRatio > 0.0 ) {
+      return DMatchToCvSeqRatioTest( matches, storage, params->minRatio );
+    }
+
+    return DMatchToCvSeq( matches, storage, 
+        (params->knn == 1) ? TAKE_JUST_FIRST : CONVERT_ALL,
+        params->calculateRatios );
+  }
 
   //##### FLANN Matcher #######
   // TODO:  Expose flann parameters through API

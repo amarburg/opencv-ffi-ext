@@ -25,35 +25,46 @@ module CVFFI
       [ :NORM_L1, :NORM_L2, :NORM_L2SQR ]   
     end
 
+
+    class CvMatcherParams  < NiceFFI::Struct
+      layout :norm_type, :int,
+             :knn, :int,
+             :calculateRatios, :bool,
+             :ratio, :float,
+             :radius, :float,
+             :crossCheck, :bool
+
+      def to_CvMatcherParams; self; end
+    end
+
+    class MatcherParams < CVFFI::Params 
+      param :norm_type, NormTypes[:NORM_L2]
+      param :knn, 1
+      param :calculateRatios, false
+      param :ratio, 0.0
+      param :radius, 0.0
+      param :crossCheck, false
+
+      def to_CvMatcherParams
+        CvMatcherParams.new( @params )
+      end
+    end
+
+
     # Brute force matcher
     #
+    attach_function :bruteForceMatcherParams, [:pointer, :pointer, :pointer, :pointer], CvSeq.typed_pointer
     attach_function :bruteForceMatcher, [:pointer, :pointer, :pointer, :int, :bool], CvSeq.typed_pointer
     attach_function :bruteForceMatcherKnn, [:pointer, :pointer, :pointer, :int, :int, :bool], CvSeq.typed_pointer
     attach_function :bruteForceMatcherRadius, [:pointer, :pointer, :pointer, :int, :float, :bool], CvSeq.typed_pointer
     attach_function :bruteForceMatcherRatioTest, [:pointer, :pointer, :pointer, :int, :float, :bool], CvSeq.typed_pointer
 
     def self.brute_force_matcher( query, train, opts = {} )
-      normType = opts[:norm_type] || opts[:norm] || :NORM_L2
-      knn = opts[:knn] || 1
-      radius = opts[:radius] || nil
-      ratio =  opts[:ratio] || nil
-      crossCheck = false 
+      # Translate some of the params
+      params = MatcherParams.new( opts )
 
       pool = CVFFI::cvCreateMemStorage(0);
-      seq = if ratio != nil
-              bruteForceMatcherRatioTest( query.to_CvMat, train.to_CvMat, pool, normType, ratio, crossCheck )
-              elsif radius != nil
-              bruteForceMatcherRadius( query.to_CvMat, train.to_CvMat, pool, normType, radius, crossCheck )
-            else
-              if knn == 1
-                # This may seem a bit odd -- why not call MatcherKnn with knn=1
-                # the bruteForceMatcher (non-Knn) calculates the ratio
-                # between the first and second descriptors ... Knn doesn't bother
-                bruteForceMatcher( query.to_CvMat, train.to_CvMat, pool, normType, crossCheck )
-              else
-                bruteForceMatcherKnn( query.to_CvMat, train.to_CvMat, pool, normType, knn, crossCheck )
-              end
-            end
+      seq =  bruteForceMatcherParams( query.to_CvMat, train.to_CvMat, pool, params.to_CvMatcherParams )
 
       MatchResults.new( seq, pool );
     end
