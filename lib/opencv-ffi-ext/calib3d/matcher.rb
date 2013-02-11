@@ -61,6 +61,7 @@ module CVFFI
 
     def self.brute_force_matcher( query, train, opts = {} )
       # Translate some of the params
+      opts[:norm_type] = opts[:norm] if opts[:norm]
       params = MatcherParams.new( opts )
 
       pool = CVFFI::cvCreateMemStorage(0);
