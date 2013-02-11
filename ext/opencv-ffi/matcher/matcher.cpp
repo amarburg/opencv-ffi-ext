@@ -142,7 +142,7 @@ extern "C" {
                             bool crossCheck CV_DEFAULT(false) ) 
   {
     vector< vector<DMatch> > matches;
-    bruteForceMatcherKnnActual( query, train, matches, normType, 1, crossCheck );
+    bruteForceMatcherKnnActual( query, train, matches, normType, 2, crossCheck );
     return DMatchToCvSeq( matches, storage, TAKE_JUST_FIRST );
   }
 
