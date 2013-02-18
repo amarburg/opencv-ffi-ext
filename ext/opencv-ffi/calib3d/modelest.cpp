@@ -181,8 +181,6 @@ bool CvModelEstimator2::runRANSAC( const CvMat* m1, const CvMat* m2, CvMat* mode
         }
     }
 
-    printf("RANSAC ran for %d iterations.\n", iter );
-
     if( maxGoodCount > 0 )
     {
         if( mask != mask0 )

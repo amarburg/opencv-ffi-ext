@@ -440,6 +440,9 @@ CV_IMPL int cvEstimateFundamental( const CvMat* points1, const CvMat* points2,
 }
 
 
+// Below lie functions I _didn't_ touch, and so we use the stock OpenCV 
+// version..  -- AM
+//   
 //CV_IMPL void cvComputeCorrespondEpilines( const CvMat* points, int pointImageID,
 //                                          const CvMat* fmatrix, CvMat* lines )
 //{
