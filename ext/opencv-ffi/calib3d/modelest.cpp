@@ -181,6 +181,9 @@ bool CvModelEstimator2::runRANSAC( const CvMat* m1, const CvMat* m2, CvMat* mode
         }
     }
 
+    if( iter == maxIters )
+      printf( "Ran to max iters %d\n", iter );
+
     if( maxGoodCount > 0 )
     {
         if( mask != mask0 )
