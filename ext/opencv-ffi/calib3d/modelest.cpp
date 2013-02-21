@@ -60,7 +60,7 @@ CvModelEstimator2::CvModelEstimator2(int _modelPoints, CvSize _modelSize, int _m
     modelSize = _modelSize;
     maxBasicSolutions = _maxBasicSolutions;
     checkPartialSubsets = true;
-    rng = cvRNG(-1);
+    rng = cvRNG(time(NULL));
 }
 
 CvModelEstimator2::~CvModelEstimator2()
