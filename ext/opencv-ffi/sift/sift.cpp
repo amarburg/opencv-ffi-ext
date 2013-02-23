@@ -1,7 +1,6 @@
 //
 // This is a verbatim copy of the modules/features2d/src/sift.cpp
-//
-// which has been edited to expose the C API and prevent the C->C++->C wrapper
+// which has been edited to expose the C API and avoid the C->C++->C wrapper
 // chain.
 
 /*M///////////////////////////////////////////////////////////////////////////////////////
@@ -945,12 +944,13 @@ static double dominant_ori( double* hist, int n )
 
   omax = hist[0];
   maxbin = 0;
-  for( i = 1; i < n; i++ )
+  for( i = 1; i < n; i++ ) {
     if( hist[i] > omax )
       {
         omax = hist[i];
         maxbin = i;
       }
+  }
   return omax;
 }
 
@@ -961,14 +961,14 @@ static double dominant_ori_angle( double *hist, int n )
 
   omax = hist[0];
   maxbin = 0;
-  for( i = 1; i < n; i++ )
-    //printf("Comparing %d %lf to %lf\n", i, hist[i], omax );
+  for( i = 1; i < n; i++ ) {
     if( hist[i] > omax )
       {
         omax = hist[i];
         maxbin = i;
       }
-  return ( ( 2.0 * CV_PI * i ) / n ) - CV_PI;
+  }
+  return ( ( 2.0 * CV_PI * maxbin ) / n ) - CV_PI;
 }
   
 
@@ -1070,6 +1070,7 @@ static void calc_feature_oris( CvSeq* features, IplImage*** gauss_pyr, bool sele
             ddata->r, ddata->c, SIFT_ORI_HIST_BINS,
             cvRound( SIFT_ORI_RADIUS * ddata->scl_octv ),
             SIFT_ORI_SIG_FCTR * ddata->scl_octv );
+
         omax = dominant_ori_angle( hist, SIFT_ORI_HIST_BINS );
         feat->ori = omax;
       }
@@ -1502,12 +1503,12 @@ static CvSeq *removeFeatureSeqDuplicates( CvSeq *features )
 // duplicated twice.
 // TODO: repair
 void recalculateAngles( CvSeq *features, IplImage*** gauss_pyr,
-                        int nOctaves, int nOctaveLayers )
+    int nOctaves, int nOctaveLayers )
 {
-    calc_feature_oris( features, gauss_pyr, false );
+  calc_feature_oris( features, gauss_pyr, false );
 
-    //printf("Completed calculating feature orientations.\n");
-   
+//  printf("Completed calculating feature orientations.\n");
+
     // Remove duplicated keypoints.
     //KeyPointsFilter::removeDuplicated( keypoints );
     removeFeatureSeqDuplicates( features );
@@ -1640,15 +1641,16 @@ extern "C" {
     ImagePyrData pyrImages( img, params.nOctaves, params.nOctaveLayers, SIFT_SIGMA, SIFT_IMG_DBL );
 
     if( params.recalculateAngles ) {
-      //printf("Recalculating angles.\n");
+      printf("Recalculating angles.\n");
       recalculateAngles( features, pyrImages.gauss_pyr, params.nOctaves, params.nOctaveLayers );
     }
-    //feat = CV_GET_SEQ_ELEM( struct feature, features, 0 );
-    //  printf("octv = %d, intvl = %d, r = %d, c = %d, ori = %lf, scl_octv = %lf\n",
-    //      feat->feature_data->octv, feat->feature_data->intvl, 
-    //     feat->feature_data->r, feat->feature_data->c, 
-    //     feat->ori, feat->feature_data->scl_octv );
 
+//    feat = CV_GET_SEQ_ELEM( struct feature, features, 0 );
+//      printf("octv = %d, intvl = %d, r = %d, c = %d, ori = %lf, scl_octv = %lf\n",
+//          feat->feature_data->octv, feat->feature_data->intvl, 
+//         feat->feature_data->r, feat->feature_data->c, 
+//         feat->ori, feat->feature_data->scl_octv );
+//
     //printf( "Computing descriptors.\n");
     compute_descriptors( features, pyrImages.gauss_pyr, SIFT_DESCR_WIDTH, SIFT_DESCR_HIST_BINS );
 

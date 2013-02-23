@@ -1,0 +1,3 @@
+
+Consider integrating the lateset version of the SIFT code from opencv-4.x
+it seems cleaner than the current implementation.
