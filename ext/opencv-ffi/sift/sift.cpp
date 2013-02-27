@@ -1641,7 +1641,7 @@ extern "C" {
     ImagePyrData pyrImages( img, params.nOctaves, params.nOctaveLayers, SIFT_SIGMA, SIFT_IMG_DBL );
 
     if( params.recalculateAngles ) {
-      printf("Recalculating angles.\n");
+      //printf("Recalculating angles.\n");
       recalculateAngles( features, pyrImages.gauss_pyr, params.nOctaves, params.nOctaveLayers );
     }
 
