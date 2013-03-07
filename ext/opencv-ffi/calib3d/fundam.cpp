@@ -419,10 +419,12 @@ CV_IMPL int cvEstimateFundamental( const CvMat* points1, const CvMat* points2,
         if( result <= 0 )
             return 0;
 
-        icvCompressPoints( (CvPoint2D64f*)m1->data.ptr, tempMask->data.ptr, 1, count );
-        count = icvCompressPoints( (CvPoint2D64f*)m2->data.ptr, tempMask->data.ptr, 1, count );
-        assert( count >= 8 );
-        m1->cols = m2->cols = count;
+        int inliers1, inliers2;
+        inliers1 = icvCompressPoints( (CvPoint2D64f*)m1->data.ptr, tempMask->data.ptr, 1, count );
+        inliers2 = icvCompressPoints( (CvPoint2D64f*)m2->data.ptr, tempMask->data.ptr, 1, count );
+        assert( inliers1 >= 8 );
+        assert( inliers2 >= 8 );
+        m1->cols = m2->cols = inliers2;
         estimator.run8Point(m1, m2, &_F3x3);
     }
 
