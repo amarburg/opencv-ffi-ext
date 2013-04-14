@@ -97,17 +97,16 @@ module CVFFI
     # coords of the points).
     # It's typically stored in a MatchResults (a wrapper around a CvSeq)
     #
-    # For that see the (Ruby, not OpenCV) Matches class below
-    #
     class DMatch < NiceFFI::Struct
       layout  :queryIdx, :int,
               :trainIdx, :int,
               :imgIdx, :int,
               :distance, :float,
-              :ratio, :float
+              :ratio, :float,
+              :rank, :uint
 
       def self.keys
-        [ :queryIdx, :trainIdx, :imgIdx, :distance, :ratio ]
+        [ :queryIdx, :trainIdx, :imgIdx, :distance, :ratio, :rank ]
       end
 
       def keys; self.class.keys; end

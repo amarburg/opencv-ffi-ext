@@ -19,6 +19,7 @@ struct CvDMatch_t {
 
   float distance;
   float ratio;
+  unsigned int rank;
 };
 
 struct CvMatcherParams_t {
@@ -35,7 +36,7 @@ enum { CONVERT_ALL = 0, TAKE_JUST_FIRST = 1 };
 
 extern "C" {
 
-  static void writeDmatchToSeqWriter( CvSeqWriter &writer, const DMatch &dmatch, float ratio = 0.0 )
+  static void writeDmatchToSeqWriter( CvSeqWriter &writer, const DMatch &dmatch, unsigned int rank = 0, float ratio = 0.0 )
   {
     CvDMatch_t dm;
     dm.queryIdx = dmatch.queryIdx;
@@ -43,6 +44,7 @@ extern "C" {
     dm.imgIdx   = dmatch.imgIdx;
     dm.distance = dmatch.distance;
     dm.ratio    = ratio;
+    dm.rank     = rank;
     CV_WRITE_SEQ_ELEM( dm, writer );
 
   }
@@ -50,7 +52,7 @@ extern "C" {
   CvSeq *DMatchToCvSeq( const vector< vector<DMatch> > &matches, CvMemStorage *storage, int doTakeFirst, bool calculateRatios CV_DEFAULT(false) )
   {
     // TODO:  For now, Knn will return a flattened set of matches, 
-    // may do this differently in the future
+    // May want to change this behavior in the future
     CvSeq *seq = cvCreateSeq( 0, sizeof( CvSeq ), sizeof( CvDMatch_t ), storage );
     float ratio;
 
@@ -62,19 +64,32 @@ extern "C" {
         if( !(*itr).empty() ) {
 
           if( !calculateRatios  || (*itr).size() == 1 )
-            ratio = 0.0;
+            ratio = NAN;
           else
             ratio = (*itr)[1].distance/(*itr)[0].distance;
 
-          writeDmatchToSeqWriter( writer, (*itr)[0], ratio );
+          writeDmatchToSeqWriter( writer, (*itr)[0], 0, ratio );
         }
       } else {
-        // Take then all
+
+        unsigned int rank = 0;
+
         for( vector<DMatch>::const_iterator itr2 = (*itr).begin();  itr2 != (*itr).end(); itr2++ ) {
+          if( calculateRatios ) {
+            vector<DMatch>::const_iterator next = itr2 + 1;
 
-// TODO: Code to calculate ratios...
+            if( next != (*itr).end() ) {
+              ratio = (*next).distance / (*itr2).distance;
+              writeDmatchToSeqWriter( writer, (*itr2), rank, ratio );
+            } else {
+              writeDmatchToSeqWriter( writer, (*itr2), rank, NAN );
+            }
 
-          writeDmatchToSeqWriter( writer, (*itr2) );
+          } else {
+            writeDmatchToSeqWriter( writer, (*itr2), rank );
+          }
+
+          ++rank;
         }
       }
     }
@@ -111,7 +126,7 @@ extern "C" {
             //printf("Comparing distaces %f and %f (%f)", (*itr)[0].distance, (*itr)[1].distance, (*itr)[1].distance/(*itr)[0].distance );
             if( ratio > minRatio )  {
               //printf(" accept\n");
-              writeDmatchToSeqWriter( writer, (*itr)[0], ratio );
+              writeDmatchToSeqWriter( writer, (*itr)[0], 0, ratio );
             } else {
               //printf(" reject\n");
             }
@@ -160,7 +175,7 @@ extern "C" {
   {
     vector< vector<DMatch> > matches;
     bruteForceMatcherKnnActual( query, train, matches, normType, 2, crossCheck );
-   return DMatchToCvSeqRatioTest( matches, storage, minRatio );
+    return DMatchToCvSeqRatioTest( matches, storage, minRatio );
   }
 
   CvSeq *bruteForceMatcherRadius( CvMat *query, CvMat *train, 
@@ -177,19 +192,22 @@ extern "C" {
 
 
   // This is the "universal" function parameterized through params.
-  CvSeq *bruteForceMatcherParams( CvMat *query, CvMat *train, CvMemStorage *storage,
-      CvMatcherParams_t *params )
+  CvSeq *bruteForceMatcherParams( CvMat *query, 
+                                  CvMat *train, 
+                                  CvMemStorage *storage,
+                                  CvMatcherParams_t *params )
   {
     int knn = params->knn;
-    if( params->calculateRatios && params->knn == 1 ) knn = 2;
+    if( params->calculateRatios && params->knn == 1 ) knn++;
 
     vector< vector<DMatch> > matches;
     BFMatcher matcher( params->normType, params->crossCheck );
 
     if (params->minRadius > 0.0 ) 
       matcher.radiusMatch( query, train, matches, params->minRadius ); 
-    else 
+    else {
       matcher.knnMatch( query, train, matches, knn );
+    }
 
     if( params->minRatio > 0.0 ) {
       return DMatchToCvSeqRatioTest( matches, storage, params->minRatio );
