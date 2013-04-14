@@ -1,6 +1,10 @@
 //
-// This is a verbatim copy of the modules/features2d/src/sift.cpp
-// which has been edited to expose the C API and avoid the C->C++->C wrapper
+// This started as a verbatim copy of the modules/features2d/src/sift.cpp
+// from OpenCV 4.2 (?).   I believe OpenCV 4.3 includes a more recent native C++
+// It may make sense to forward port to that version at some point, if only to
+// keep up with OpenCV development.
+//
+// This has been edited to expose the C API and avoid the C->C++->C wrapper
 // chain.
 
 /*M///////////////////////////////////////////////////////////////////////////////////////
