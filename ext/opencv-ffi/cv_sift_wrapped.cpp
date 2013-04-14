@@ -1,3 +1,10 @@
+//
+// This is strictly a wrapper around OpenCV's SIFT functions.  The code in
+// sift/ is an attempt to make an version of the SIFT descriptor code
+// (starting from the same code base from OpenCV) which contains fewer 
+// wrapping/unwrappings. 
+//
+
 
 #include <stdio.h>
 
