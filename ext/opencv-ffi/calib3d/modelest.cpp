@@ -53,7 +53,7 @@
 using namespace std;
 
 
-CvModelEstimator2::CvModelEstimator2(int _modelPoints, CvSize _modelSize, int _maxBasicSolutions, int _maxIters)
+CvffiModelEstimator2::CvffiModelEstimator2(int _modelPoints, CvSize _modelSize, int _maxBasicSolutions, int _maxIters)
   : maxIters( _maxIters )
 {
     modelPoints = _modelPoints;
@@ -63,17 +63,17 @@ CvModelEstimator2::CvModelEstimator2(int _modelPoints, CvSize _modelSize, int _m
     rng = cvRNG(time(NULL));
 }
 
-CvModelEstimator2::~CvModelEstimator2()
+CvffiModelEstimator2::~CvffiModelEstimator2()
 {
 }
 
-void CvModelEstimator2::setSeed( int64 seed )
+void CvffiModelEstimator2::setSeed( int64 seed )
 {
     rng = cvRNG(seed);
 }
 
 
-int CvModelEstimator2::findInliers( const CvMat* m1, const CvMat* m2,
+int CvffiModelEstimator2::findInliers( const CvMat* m1, const CvMat* m2,
                                     const CvMat* model, CvMat* _err,
                                     CvMat* _mask, double threshold )
 {
@@ -114,10 +114,12 @@ cvRANSACUpdateNumIters( double p, double ep,
         max_iters : cvRound(num/denom);
 }
 
-bool CvModelEstimator2::runRANSAC( const CvMat* m1, const CvMat* m2, CvMat* model,
-                                    CvMat* mask0, double reprojThreshold,
-                                    double confidence )
+bool CvffiModelEstimator2::runRANSAC( const CvMat* m1, const CvMat* m2, CvMat* model,
+                                    CvMat* mask0, int &totalIters,
+                                    double reprojThreshold, 
+                                    double confidence  )
 {
+
     bool result = false;
     cv::Ptr<CvMat> mask = cvCloneMat(mask0);
     cv::Ptr<CvMat> models, err, tmask;
@@ -129,7 +131,7 @@ bool CvModelEstimator2::runRANSAC( const CvMat* m1, const CvMat* m2, CvMat* mode
     int iter, niters = maxIters;
 
     if( count < modelPoints )
-        return false;
+      return false;
 
     models = cvCreateMat( modelSize.height*maxBasicSolutions, modelSize.width, CV_64FC1 );
     err = cvCreateMat( 1, count, CV_32FC1 );
@@ -191,13 +193,15 @@ bool CvModelEstimator2::runRANSAC( const CvMat* m1, const CvMat* m2, CvMat* mode
         result = true;
     }
 
+    totalIters = iter;
+
     return result;
 }
 
 
 static CV_IMPLEMENT_QSORT( icvSortDistances, int, CV_LT )
 
-bool CvModelEstimator2::runLMeDS( const CvMat* m1, const CvMat* m2, CvMat* model,
+bool CvffiModelEstimator2::runLMeDS( const CvMat* m1, const CvMat* m2, CvMat* model,
                                   CvMat* mask, double confidence, int _maxIters )
 {
     const double outlierRatio = 0.45;
@@ -289,7 +293,7 @@ bool CvModelEstimator2::runLMeDS( const CvMat* m1, const CvMat* m2, CvMat* model
 }
 
 
-bool CvModelEstimator2::getSubset( const CvMat* m1, const CvMat* m2,
+bool CvffiModelEstimator2::getSubset( const CvMat* m1, const CvMat* m2,
                                    CvMat* ms1, CvMat* ms2, int maxAttempts )
 {
     cv::AutoBuffer<int> _idx(modelPoints);
@@ -335,7 +339,7 @@ bool CvModelEstimator2::getSubset( const CvMat* m1, const CvMat* m2,
 }
 
 
-bool CvModelEstimator2::checkSubset( const CvMat* m, int count )
+bool CvffiModelEstimator2::checkSubset( const CvMat* m, int count )
 {
     int j, k, i, i0, i1;
     CvPoint2D64f* ptr = (CvPoint2D64f*)m->data.ptr;

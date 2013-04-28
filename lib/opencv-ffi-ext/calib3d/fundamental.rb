@@ -19,13 +19,31 @@ module CVFFI
       param :method, :CV_FM_RANSAC
     end
 
+    class EnhancedFundamental < Fundamental
+
+      def initialize( f, status, results )
+        @results = results
+        super f, status, results.retval
+      end
+
+      def num_iters
+        @results.num_iters
+      end
+    end
+
+    class CvFundamentalResult < NiceFFI::Struct
+      layout :retval, :int,
+             :num_iters, :int
+    end
+
     #
     # Just for clarity this is my "hacked" version of the 
     # stock CV cvEstimateFundamentalMat.  Should expect 
     # further deviations as time goes on.
     #
     attach_function :cvEstimateFundamental, [ :pointer, :pointer, :pointer, 
-      :int, :double, :double, :int, :pointer ], :int
+                                              :int, :double, :double, :int, 
+                                              :pointer, CvFundamentalResult.by_ref ], :int
 
     def self.estimateFundamental( points1, points2, params )
 
@@ -43,11 +61,12 @@ module CVFFI
                       CVFFI::cvCreateMat( 3,3, :CV_64F )
                     end
       status = CVFFI::cvCreateMat( points1.height, 1, :CV_8U )
+      result = CvFundamentalResult.new
 
-      ret = cvEstimateFundamental( points1, points2, fundamental, 
-                                   CvRansacMethod[ params.method ], params.outlier_threshold, params.confidence, params.max_iters, status )
+      cvEstimateFundamental( points1, points2, fundamental, 
+                                  CvRansacMethod[ params.method ], params.outlier_threshold, params.confidence, params.max_iters, status, result )
 
-      if ret > 0
+      if result.retval > 0
         case count
         when 7
           # In case of 7 point algorithm, should expect 3 answers
@@ -59,7 +78,7 @@ module CVFFI
           }
 
         else
-        Fundamental.new( Mat.new(fundamental), status, ret )
+          EnhancedFundamental.new( Mat.new(fundamental), status, result )
         end
       else
         nil

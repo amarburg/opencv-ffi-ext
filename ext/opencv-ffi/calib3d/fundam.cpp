@@ -50,15 +50,15 @@ using namespace cv;
 
 template<typename T> int icvCompressPoints( T* ptr, const uchar* mask, int mstep, int count )
 {
-    int i, j;
-    for( i = j = 0; i < count; i++ )
-        if( mask[i*mstep] )
-        {
-            if( i > j )
-                ptr[j] = ptr[i];
-            j++;
-        }
-    return j;
+  int i, j;
+  for( i = j = 0; i < count; i++ )
+    if( mask[i*mstep] )
+    {
+      if( i > j )
+        ptr[j] = ptr[i];
+      j++;
+    }
+  return j;
 }
 
 /** Snipped out the homography estimator **/
@@ -71,10 +71,10 @@ template<typename T> int icvCompressPoints( T* ptr, const uchar* mask, int mstep
    "Determining the Epipolar Geometry and its Uncertainty: A Review"
    that can be found at http://www-sop.inria.fr/robotvis/personnel/zzhang/zzhang-eng.html */
 
-/* This version modified by Aaron Marburg
+/* This version modified by Aaron Marburg */
 
 /************************************** 7-point algorithm *******************************/
-class FundamentalEstimator : public CvModelEstimator2
+class FundamentalEstimator : public CvffiModelEstimator2
 {
 public:
     FundamentalEstimator( int _modelPoints, int _max_iters = 0 );
@@ -89,7 +89,7 @@ protected:
 };
 
 FundamentalEstimator::FundamentalEstimator( int _modelPoints, int _max_iters )
-: CvModelEstimator2( _modelPoints, cvSize(3,3), _modelPoints == 7 ? 3 : 1, _max_iters )
+: CvffiModelEstimator2( _modelPoints, cvSize(3,3), _modelPoints == 7 ? 3 : 1, _max_iters )
 {
     assert( _modelPoints == 7 || _modelPoints == 8 );
 }
@@ -363,12 +363,21 @@ void FundamentalEstimator::computeReprojError( const CvMat* _m1, const CvMat* _m
 }
 
 
-/* Core C entry point */
-CV_IMPL int cvEstimateFundamental( const CvMat* points1, const CvMat* points2,
+extern "C" {
+  struct CvFundamentalResult {
+    int retval;
+    int num_iters;
+  };
+}
+
+
+/* Main C entry point */
+CV_IMPL void cvEstimateFundamental( const CvMat* points1, const CvMat* points2,
     CvMat* fmatrix, int method,
-    double param1, double param2, int max_iters,  CvMat* mask )
+    double param1, double param2, int max_iters,  CvMat* mask,
+    CvFundamentalResult *result )
 {
-    int result = 0;
+  int retval = 0;
     Ptr<CvMat> m1, m2, tempMask;
 
     double F[3*9];
@@ -380,8 +389,10 @@ CV_IMPL int cvEstimateFundamental( const CvMat* points1, const CvMat* points2,
         (fmatrix->rows == 3 || (fmatrix->rows == 9 && method == CV_FM_7POINT)) );
 
     count = MAX(points1->cols, points1->rows);
-    if( count < 7 )
-        return 0;
+    if( count < 7 ) {
+      result->retval = 0;
+      return;
+    }
 
     m1 = cvCreateMat( 1, count, CV_64FC2 );
     cvConvertPointsHomogeneous( points1, m1 );
@@ -402,22 +413,26 @@ CV_IMPL int cvEstimateFundamental( const CvMat* points1, const CvMat* points2,
 
     FundamentalEstimator estimator(7, max_iters );
     if( count == 7 )
-        result = estimator.run7Point(m1, m2, &_F9x3);
+        retval = estimator.run7Point(m1, m2, &_F9x3);
     else if( method == CV_FM_8POINT )
-        result = estimator.run8Point(m1, m2, &_F3x3);
+        retval = estimator.run8Point(m1, m2, &_F3x3);
     else
     {
+      int numIters = 0;
         if( param1 <= 0 )
             param1 = 3;
         if( param2 < DBL_EPSILON || param2 > 1 - DBL_EPSILON )
             param2 = 0.99;
         
         if( (method & ~3) == CV_RANSAC && count >= 15 )
-            result = estimator.runRANSAC(m1, m2, &_F3x3, tempMask, param1, param2 );
+            retval = estimator.runRANSAC(m1, m2, &_F3x3, tempMask, result->num_iters, param1, param2 );
         else
-            result = estimator.runLMeDS(m1, m2, &_F3x3, tempMask, param2 );
-        if( result <= 0 )
-            return 0;
+            retval = estimator.runLMeDS(m1, m2, &_F3x3, tempMask, param2 );
+
+        if( retval <= 0 ) {
+          result->retval = 0;
+          return;
+        }
 
         int inliers1, inliers2;
         inliers1 = icvCompressPoints( (CvPoint2D64f*)m1->data.ptr, tempMask->data.ptr, 1, count );
@@ -428,7 +443,7 @@ CV_IMPL int cvEstimateFundamental( const CvMat* points1, const CvMat* points2,
         estimator.run8Point(m1, m2, &_F3x3);
     }
 
-    if( result )
+    if( retval )
         cvConvert( fmatrix->rows == 3 ? &_F3x3 : &_F9x3, fmatrix );
     
     if( mask && tempMask )
@@ -439,7 +454,7 @@ CV_IMPL int cvEstimateFundamental( const CvMat* points1, const CvMat* points2,
             cvTranspose( tempMask, mask );
     }
 
-    return result;
+    result->retval = retval;
 }
 
 
