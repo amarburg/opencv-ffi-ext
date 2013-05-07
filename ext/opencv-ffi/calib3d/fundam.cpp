@@ -61,7 +61,7 @@ template<typename T> int icvCompressPoints( T* ptr, const uchar* mask, int mstep
   return j;
 }
 
-/** Snipped out the homography estimator **/
+/** Snipped out the homography estimator.  -AMM **/
 
 /* Evaluation of Fundamental Matrix from point correspondences.
    The original code has been written by Valery Mosyagin */

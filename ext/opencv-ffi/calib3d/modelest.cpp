@@ -49,6 +49,7 @@
 #include <opencv2/core/core_c.h>
 
 #include <stdio.h>
+#include <sys/time.h>
 
 using namespace std;
 
@@ -60,7 +61,17 @@ CvffiModelEstimator2::CvffiModelEstimator2(int _modelPoints, CvSize _modelSize, 
     modelSize = _modelSize;
     maxBasicSolutions = _maxBasicSolutions;
     checkPartialSubsets = true;
-    rng = cvRNG(time(NULL));
+
+    // was rng = cvRNG(time(null))
+    // This would result in rng having the same seed if
+    // several CvffiModelEstimator2 were created in the span
+    // of one second --- for example if the C API were called
+    // repeatedly.
+    //
+    // n.b. cvRNG can take an int64
+    struct timeval now;
+    gettimeofday( &now, NULL );
+    rng = cvRNG(now.tv_usec );
 }
 
 CvffiModelEstimator2::~CvffiModelEstimator2()
