@@ -367,6 +367,7 @@ extern "C" {
   struct CvFundamentalResult {
     int retval;
     int num_iters;
+    bool max_iters;
   };
 }
 
@@ -378,83 +379,88 @@ CV_IMPL void cvEstimateFundamental( const CvMat* points1, const CvMat* points2,
     CvFundamentalResult *result )
 {
   int retval = 0;
-    Ptr<CvMat> m1, m2, tempMask;
+  Ptr<CvMat> m1, m2, tempMask;
 
-    double F[3*9];
-    CvMat _F3x3 = cvMat( 3, 3, CV_64FC1, F ), _F9x3 = cvMat( 9, 3, CV_64FC1, F );
-    int count;
+  // Set some reasonable default values for the 7- and 8-points cases
+  result->max_iters = false;
+  result->num_iters = 0;
 
-    CV_Assert( CV_IS_MAT(points1) && CV_IS_MAT(points2) && CV_ARE_SIZES_EQ(points1, points2) );
-    CV_Assert( CV_IS_MAT(fmatrix) && fmatrix->cols == 3 &&
-        (fmatrix->rows == 3 || (fmatrix->rows == 9 && method == CV_FM_7POINT)) );
+  double F[3*9];
+  CvMat _F3x3 = cvMat( 3, 3, CV_64FC1, F ), _F9x3 = cvMat( 9, 3, CV_64FC1, F );
+  int count;
 
-    count = MAX(points1->cols, points1->rows);
-    if( count < 7 ) {
+  CV_Assert( CV_IS_MAT(points1) && CV_IS_MAT(points2) && CV_ARE_SIZES_EQ(points1, points2) );
+  CV_Assert( CV_IS_MAT(fmatrix) && fmatrix->cols == 3 &&
+      (fmatrix->rows == 3 || (fmatrix->rows == 9 && method == CV_FM_7POINT)) );
+
+  count = MAX(points1->cols, points1->rows);
+  if( count < 7 ) {
+    result->retval = 0;
+    return;
+  }
+
+  m1 = cvCreateMat( 1, count, CV_64FC2 );
+  cvConvertPointsHomogeneous( points1, m1 );
+
+  m2 = cvCreateMat( 1, count, CV_64FC2 );
+  cvConvertPointsHomogeneous( points2, m2 );
+
+  if( mask )
+  {
+    CV_Assert( CV_IS_MASK_ARR(mask) && CV_IS_MAT_CONT(mask->type) &&
+        (mask->rows == 1 || mask->cols == 1) &&
+        mask->rows*mask->cols == count );
+  }
+  if( mask || count >= 8 )
+    tempMask = cvCreateMat( 1, count, CV_8U );
+  if( !tempMask.empty() )
+    cvSet( tempMask, cvScalarAll(1.) );
+
+  FundamentalEstimator estimator(7, max_iters );
+  if( count == 7 )
+    retval = estimator.run7Point(m1, m2, &_F9x3);
+  else if( method == CV_FM_8POINT )
+    retval = estimator.run8Point(m1, m2, &_F3x3);
+  else
+  {
+    int numIters = 0;
+    if( param1 <= 0 )
+      param1 = 3;
+    if( param2 < DBL_EPSILON || param2 > 1 - DBL_EPSILON )
+      param2 = 0.99;
+
+    if( (method & ~3) == CV_RANSAC && count >= 15 )
+      retval = estimator.runRANSAC(m1, m2, &_F3x3, tempMask, result->num_iters, param1, param2 );
+    else
+      retval = estimator.runLMeDS(m1, m2, &_F3x3, tempMask, param2 );
+
+    if( retval <= 0 ) {
       result->retval = 0;
       return;
     }
 
-    m1 = cvCreateMat( 1, count, CV_64FC2 );
-    cvConvertPointsHomogeneous( points1, m1 );
+    int inliers1, inliers2;
+    inliers1 = icvCompressPoints( (CvPoint2D64f*)m1->data.ptr, tempMask->data.ptr, 1, count );
+    inliers2 = icvCompressPoints( (CvPoint2D64f*)m2->data.ptr, tempMask->data.ptr, 1, count );
+    assert( inliers1 >= 8 );
+    assert( inliers2 >= 8 );
+    m1->cols = m2->cols = inliers2;
+    estimator.run8Point(m1, m2, &_F3x3);
+  }
 
-    m2 = cvCreateMat( 1, count, CV_64FC2 );
-    cvConvertPointsHomogeneous( points2, m2 );
+  if( retval )
+    cvConvert( fmatrix->rows == 3 ? &_F3x3 : &_F9x3, fmatrix );
 
-    if( mask )
-    {
-        CV_Assert( CV_IS_MASK_ARR(mask) && CV_IS_MAT_CONT(mask->type) &&
-            (mask->rows == 1 || mask->cols == 1) &&
-            mask->rows*mask->cols == count );
-    }
-    if( mask || count >= 8 )
-        tempMask = cvCreateMat( 1, count, CV_8U );
-    if( !tempMask.empty() )
-        cvSet( tempMask, cvScalarAll(1.) );
-
-    FundamentalEstimator estimator(7, max_iters );
-    if( count == 7 )
-        retval = estimator.run7Point(m1, m2, &_F9x3);
-    else if( method == CV_FM_8POINT )
-        retval = estimator.run8Point(m1, m2, &_F3x3);
+  if( mask && tempMask )
+  {
+    if( CV_ARE_SIZES_EQ(mask, tempMask) )
+      cvCopy( tempMask, mask );
     else
-    {
-      int numIters = 0;
-        if( param1 <= 0 )
-            param1 = 3;
-        if( param2 < DBL_EPSILON || param2 > 1 - DBL_EPSILON )
-            param2 = 0.99;
-        
-        if( (method & ~3) == CV_RANSAC && count >= 15 )
-            retval = estimator.runRANSAC(m1, m2, &_F3x3, tempMask, result->num_iters, param1, param2 );
-        else
-            retval = estimator.runLMeDS(m1, m2, &_F3x3, tempMask, param2 );
+      cvTranspose( tempMask, mask );
+  }
 
-        if( retval <= 0 ) {
-          result->retval = 0;
-          return;
-        }
-
-        int inliers1, inliers2;
-        inliers1 = icvCompressPoints( (CvPoint2D64f*)m1->data.ptr, tempMask->data.ptr, 1, count );
-        inliers2 = icvCompressPoints( (CvPoint2D64f*)m2->data.ptr, tempMask->data.ptr, 1, count );
-        assert( inliers1 >= 8 );
-        assert( inliers2 >= 8 );
-        m1->cols = m2->cols = inliers2;
-        estimator.run8Point(m1, m2, &_F3x3);
-    }
-
-    if( retval )
-        cvConvert( fmatrix->rows == 3 ? &_F3x3 : &_F9x3, fmatrix );
-    
-    if( mask && tempMask )
-    {
-        if( CV_ARE_SIZES_EQ(mask, tempMask) )
-            cvCopy( tempMask, mask );
-        else
-            cvTranspose( tempMask, mask );
-    }
-
-    result->retval = retval;
+  result->max_iters = (result->num_iters == max_iters ? true : false);
+  result->retval = retval;
 }
 
 

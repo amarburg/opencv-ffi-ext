@@ -29,11 +29,16 @@ module CVFFI
       def num_iters
         @results.num_iters
       end
+
+      def max_iters?
+        @results.max_iters
+      end
     end
 
     class CvFundamentalResult < NiceFFI::Struct
       layout :retval, :int,
-             :num_iters, :int
+             :num_iters, :int,
+             :max_iters, :bool
     end
 
     #
@@ -45,13 +50,14 @@ module CVFFI
                                               :int, :double, :double, :int, 
                                               :pointer, CvFundamentalResult.by_ref ], :int
 
-    def self.estimateFundamental( points1, points2, params )
+    def self.estimateFundamental( points1, points2, params = {})
 
       # There's a bit of a snarl in the logic in cvEstimateFundamental 
       # (and cvEstimateFundamentalMat) ... you can request the 7-point
       # algorithm but it will only do it if you specify exactly 
       # 7 elements of points1.  
 
+      params = FEstimatorParams.new( params )
       count = [ points1.height, points1.width ].max
       fundamental = case count
                     when 7
@@ -74,7 +80,7 @@ module CVFFI
           m = fundamental.to_Matrix.row_vectors
           Array.new(3) { |i|
             as_mat = Matrix.rows( m.shift(3) )
-            Fundamental.new( as_mat.to_Mat( :type => :CV_64F ), status, ret )
+            EnhancedFundamental.new( as_mat.to_Mat( :type => :CV_64F ), status, result )
           }
 
         else
