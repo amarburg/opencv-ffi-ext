@@ -39,12 +39,8 @@
 //
 //M*/
 
-#include "_modelest.h"
-
-#include <opencv2/calib3d/calib3d.hpp>
-#include <opencv2/core/core.hpp>
-#include <opencv2/core/internal.hpp>
-#include <opencv2/core/core_c.h>
+#include "cvffi_modelest.h"
+#include "cvffi_fundam.h"
 
 using namespace cv;
 
@@ -60,33 +56,6 @@ template<typename T> int icvCompressPoints( T* ptr, const uchar* mask, int mstep
     }
   return j;
 }
-
-/** Snipped out the homography estimator.  -AMM **/
-
-/* Evaluation of Fundamental Matrix from point correspondences.
-   The original code has been written by Valery Mosyagin */
-
-/* The algorithms (except for RANSAC) and the notation have been taken from
-   Zhengyou Zhang's research report
-   "Determining the Epipolar Geometry and its Uncertainty: A Review"
-   that can be found at http://www-sop.inria.fr/robotvis/personnel/zzhang/zzhang-eng.html */
-
-/* This version modified by Aaron Marburg */
-
-/************************************** 7-point algorithm *******************************/
-class FundamentalEstimator : public CvffiModelEstimator2
-{
-public:
-    FundamentalEstimator( int _modelPoints, int _max_iters = 0 );
-
-    virtual int runKernel( const CvMat* m1, const CvMat* m2, CvMat* model );
-    virtual int run7Point( const CvMat* m1, const CvMat* m2, CvMat* model );
-    virtual int run8Point( const CvMat* m1, const CvMat* m2, CvMat* model );
-protected:
-    virtual void computeReprojError( const CvMat* m1, const CvMat* m2,
-                                     const CvMat* model, CvMat* error );
-
-};
 
 FundamentalEstimator::FundamentalEstimator( int _modelPoints, int _max_iters )
 : CvffiModelEstimator2( _modelPoints, cvSize(3,3), _modelPoints == 7 ? 3 : 1, _max_iters )
@@ -360,15 +329,6 @@ void FundamentalEstimator::computeReprojError( const CvMat* _m1, const CvMat* _m
 
         err[i] = (float)std::max(d1*d1*s1, d2*d2*s2);
     }
-}
-
-
-extern "C" {
-  struct CvFundamentalResult {
-    int retval;
-    int num_iters;
-    bool max_iters;
-  };
 }
 
 
