@@ -67,6 +67,10 @@ module CVFFI
 
     attach_function :eigenPoly6Solver, [Eigen7d.by_value], Eigen6d.by_value
 
+    #
+    # n.b. Coefficients in order of ascending power:
+    #
+    # a + bx + cx^2 + dx^3 ....
     def self.polySolver( a )
 
       case a.length

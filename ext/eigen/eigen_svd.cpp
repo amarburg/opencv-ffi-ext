@@ -28,7 +28,7 @@ MatrixXf cvMatToEigen( CvMat *A )
 
 CvMat *eigenToCvMat( MatrixXf a )
 {
-  CvMat *mat = cvCreateMat( a.rows(), a.cols(), CV_32F );
+  CvMat *mat = cvCreateMat( a.rows(), a.cols(), CV_64F );
   
   for( int i = 0; i < a.rows(); i++ ) {
     for( int j = 0; j < a.cols(); j++ ) { 

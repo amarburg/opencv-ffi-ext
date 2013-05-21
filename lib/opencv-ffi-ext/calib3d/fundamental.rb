@@ -50,6 +50,8 @@ module CVFFI
                                               :int, :double, :double, :int, 
                                               :pointer, CvFundamentalResult.by_ref ], :int
 
+    attach_function :cvComputeReprojError, [ CvMat.by_ref, CvMat.by_ref, CvMat.by_ref, CvMat.by_ref ], :void 
+
     def self.estimateFundamental( points1, points2, params = {})
 
       # There's a bit of a snarl in the logic in cvEstimateFundamental 
@@ -90,6 +92,18 @@ module CVFFI
         nil
       end
 
+    end
+
+    def self.computeReprojError( x, xp, f )
+      # The C function assumes doubles for x, xp, and f, but returns floats
+      x  =  x.to_Mat( :type => :CV_64F ).to_CvMat
+      xp = xp.to_Mat( :type => :CV_64F ).to_CvMat
+      f  =  f.to_Mat( :type => :CV_64F ).to_CvMat
+      err = CVFFI::cvCreateMat( x.height, 1, :CV_32F )
+
+      cvComputeReprojError( x, xp, f, err )
+
+      Mat.new(err )
     end
 
     # Will run 7-point if there are only 7 data points, otherwise
