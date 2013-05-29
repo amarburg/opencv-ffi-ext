@@ -299,7 +299,12 @@ int FundamentalEstimator::run8Point( const CvMat* _m1, const CvMat* _m2, CvMat* 
     return 1;
 }
 
-
+// This "reprojection error" is
+//
+// max( d( x', Fx )^2 , d( x, FT x' )^2 )
+//
+// That is, the larger of the two squared distances between a point and the 
+// epipole corresponding to the matching point.
 void FundamentalEstimator::computeReprojError( const CvMat* _m1, const CvMat* _m2,
                                         const CvMat* model, CvMat* _err )
 {
@@ -421,40 +426,6 @@ CV_IMPL void cvEstimateFundamental( const CvMat* points1, const CvMat* points2,
 
   result->max_iters = (result->num_iters == max_iters ? true : false);
   result->retval = retval;
-}
-
-
-// n.b. I've changed the API.  It now assumes _m1 is an  N x 2 1-channel matrix, 
-// not a N x 1 2-channel matrix.  As such, count = _m1->rows, 
-// not _m1->rows * _m1->cols as before
-CV_IMPL void cvComputeReprojError( const CvMat* _m1, const CvMat* _m2, const CvMat* model, CvMat* _err )
-{
-    int i, count = _m1->rows;
-    const CvPoint2D64f* m1 = (const CvPoint2D64f*)_m1->data.ptr;
-    const CvPoint2D64f* m2 = (const CvPoint2D64f*)_m2->data.ptr;
-    const double* F = model->data.db;
-    float* err = _err->data.fl;
-    
-    for( i = 0; i < count; i++ )
-    {
-        double a, b, c, d1, d2, s1, s2;
-
-        a = F[0]*m1[i].x + F[1]*m1[i].y + F[2];
-        b = F[3]*m1[i].x + F[4]*m1[i].y + F[5];
-        c = F[6]*m1[i].x + F[7]*m1[i].y + F[8];
-
-        s2 = 1./(a*a + b*b);
-        d2 = m2[i].x*a + m2[i].y*b + c;
-
-        a = F[0]*m2[i].x + F[3]*m2[i].y + F[6];
-        b = F[1]*m2[i].x + F[4]*m2[i].y + F[7];
-        c = F[2]*m2[i].x + F[5]*m2[i].y + F[8];
-
-        s1 = 1./(a*a + b*b);
-        d1 = m1[i].x*a + m1[i].y*b + c;
-
-        err[i] = (float)std::max(d1*d1*s1, d2*d2*s2);
-    }
 }
 
 

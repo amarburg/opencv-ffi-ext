@@ -7,6 +7,7 @@ require 'opencv-ffi-ext/calib3d/matcher'
 require 'opencv-ffi-ext/calib3d/matcher_helper'
 require 'opencv-ffi-ext/calib3d/matcher_types'
 require 'opencv-ffi-ext/calib3d/fundamental.rb'
+require 'opencv-ffi-ext/calib3d/reproj.rb'
 require 'opencv-ffi-ext/calib3d/pnp.rb'
 
 require 'opencv-ffi-ext/vector_math'

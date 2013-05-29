@@ -19,6 +19,8 @@ module CVFFI
       param :method, :CV_FM_RANSAC
     end
 
+    # Wraps the standard Fundamental but includes add'l fields
+    # from the "results" member of  CvFundamentalResult
     class EnhancedFundamental < Fundamental
 
       def initialize( f, status, results )
@@ -49,8 +51,6 @@ module CVFFI
     attach_function :cvEstimateFundamental, [ :pointer, :pointer, :pointer, 
                                               :int, :double, :double, :int, 
                                               :pointer, CvFundamentalResult.by_ref ], :int
-
-    attach_function :cvComputeReprojError, [ CvMat.by_ref, CvMat.by_ref, CvMat.by_ref, CvMat.by_ref ], :void 
 
     def self.estimateFundamental( points1, points2, params = {})
 
@@ -93,19 +93,7 @@ module CVFFI
       end
 
     end
-
-    def self.computeReprojError( x, xp, f )
-      # The C function assumes doubles for x, xp, and f, but returns floats
-      x  =  x.to_Mat( :type => :CV_64F ).to_CvMat
-      xp = xp.to_Mat( :type => :CV_64F ).to_CvMat
-      f  =  f.to_Mat( :type => :CV_64F ).to_CvMat
-      err = CVFFI::cvCreateMat( x.height, 1, :CV_32F )
-
-      cvComputeReprojError( x, xp, f, err )
-
-      Mat.new(err )
-    end
-
+    
     # Will run 7-point if there are only 7 data points, otherwise
     # will run 8-point ... never RANSAC or LMedS
     def self.fundamentalKernel( points1, points2 )
