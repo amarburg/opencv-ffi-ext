@@ -3,6 +3,9 @@
 #include <opencv2/core/internal.hpp>
 #include <opencv2/core/core_c.h>
 
+
+#include <stdio.h>
+
 // n.b. I've changed the API.  It now assumes _m1 is an  N x 2 1-channel matrix, 
 // not a N x 1 2-channel matrix.  As such, count = _m1->rows, 
 // not _m1->rows * _m1->cols as before
@@ -44,12 +47,21 @@ CV_IMPL void cvHMaxReprojError( const CvMat* _m1, const CvMat* _m2, const CvMat*
     int i, count = _m1->rows;
     const CvPoint2D64f* m1 = (const CvPoint2D64f*)_m1->data.ptr;
     const CvPoint2D64f* m2 = (const CvPoint2D64f*)_m2->data.ptr;
-    const double* H = model->data.db;
+
+    CvMat *h = cvCreateMat( 3, 3, CV_64FC1 );
+    cvCopy( model, h );
+    const double* H = h->data.db;
+
     float* err = _err->data.fl;
-    
+
+    // Need to invert H
+    CvMat *hinv = cvCreateMat( 3, 3, CV_64FC1 );
+    cvInvert( model, hinv );
+    const double* Hi = hinv->data.db;
+
     for( i = 0; i < count; i++ )
     {
-        double a, b, c, d1, d2, s1, s2;
+        double a, b, c, d1, d2;
 
         // This is H m1 
         a = H[0]*m1[i].x + H[1]*m1[i].y + H[2];
@@ -58,12 +70,13 @@ CV_IMPL void cvHMaxReprojError( const CvMat* _m1, const CvMat* _m2, const CvMat*
 
         a /= c;
         b /= c;
-        d2 = (m2[i].x - a)*(m2[i].x - a) + (m2[i].y - b)*(m2[i].y - b);
+        d1 = (m2[i].x - a)*(m2[i].x - a) + (m2[i].y - b)*(m2[i].y - b);
 
-        // This is H^T m2
-        a = H[0]*m2[i].x + H[3]*m2[i].y + H[6];
-        b = H[1]*m2[i].x + H[4]*m2[i].y + H[7];
-        c = H[2]*m2[i].x + H[5]*m2[i].y + H[8];
+        // This is H^(-1) m2
+        a = Hi[0]*m2[i].x + Hi[1]*m2[i].y + Hi[2];
+        b = Hi[3]*m2[i].x + Hi[4]*m2[i].y + Hi[5];
+        c = Hi[6]*m2[i].x + Hi[7]*m2[i].y + Hi[8];
+
 
         a /= c;
         b /= c;
@@ -71,6 +84,10 @@ CV_IMPL void cvHMaxReprojError( const CvMat* _m1, const CvMat* _m2, const CvMat*
 
         err[i] = (float)std::max(d1, d2);
     }
+
+
+    cvReleaseMat( &hinv );
+    cvReleaseMat( &h );
 }
 
 
