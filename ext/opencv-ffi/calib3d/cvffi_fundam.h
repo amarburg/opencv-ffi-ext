@@ -79,6 +79,21 @@ namespace cv {
 
   };
 
+  class HomographyEstimator : public CvffiModelEstimator2
+  {
+    public:
+      HomographyEstimator( int modelPoints, int _max_iters = 0 );
+
+      virtual int runKernel( const CvMat* m1, const CvMat* m2, CvMat* model );
+      virtual bool refine( const CvMat* m1, const CvMat* m2,
+                           CvMat* model, int maxIters );
+    protected:
+      virtual void computeReprojError( const CvMat* m1, const CvMat* m2,
+                                       const CvMat* model, CvMat* error );
+      virtual bool isMinimalSetConsistent( const CvMat* m1, const CvMat* m2 );
+      virtual bool weakConstraint ( const CvMat* srcPoints, const CvMat* dstPoints, int t1, int t2, int t3 );
+  };
+
 }
 
 extern "C" {
@@ -95,6 +110,9 @@ extern "C" {
       double param1, double param2, int max_iters,  CvMat* mask,
       CvFundamentalResult *result );
 
+  CV_IMPL void cvEstimateHomography( const CvMat* objectPoints, const CvMat* imagePoints,
+      CvMat* __H, int method, double ransacReprojThreshold, int max_iters,
+      CvMat* mask, CvFundamentalResult *result );
 }
 
 #endif /* _CVFFI_FUNDAM_H */

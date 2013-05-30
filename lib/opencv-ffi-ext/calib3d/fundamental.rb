@@ -104,11 +104,51 @@ module CVFFI
     end
 
 
-    ## Just a thin wrapper until I start monkeying with the Homography
-    #  estimator as well.
-    def self.estimateHomography( points1, points2, params )
+    class EnhancedHomography < Homography
+
+      def initialize( f, status, results )
+        @results = results
+        super f, status, results.retval
+      end
+
+      def num_iters
+        @results.num_iters
+      end
+
+      def max_iters?
+        @results.max_iters
+      end
+    end
+
+
+    attach_function :cvEstimateHomography, [ CvMat.by_ref, CvMat.by_ref, CvMat.by_ref,
+                                             :int, :double, :int, CvMat.by_ref, CvFundamentalResult.by_ref ], :void
+
+    def self.estimateHomography( points1, points2, params = {})
+
       puts "Running my homography calculation."
-      CVFFI::findHomography( points1, points2, CvRansacMethod[ params.method ], params.outlier_threshold )
+
+      # There's a bit of a snarl in the logic in cvEstimateFundamental 
+      # (and cvEstimateFundamentalMat) ... you can request the 7-point
+      # algorithm but it will only do it if you specify exactly 
+      # 7 elements of points1.  
+
+      params = FEstimatorParams.new( params )
+      count = [ points1.height, points1.width ].max
+      homography = CVFFI::cvCreateMat( 3, 3, :CV_64F )
+      status = CVFFI::cvCreateMat( points1.height, 1, :CV_8U )
+      result = CvFundamentalResult.new
+
+      cvEstimateHomography( points1, points2, homography,
+                           CvRansacMethod[ params.method ], params.outlier_threshold, params.max_iters,
+                           status, result )
+
+      if result.retval > 0
+        EnhancedHomography.new( homography, status, result )
+      else
+        nil
+      end
+
     end
   end
 end
